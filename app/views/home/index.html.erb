@@ -13,6 +13,15 @@
     千葉のカオスを解消する<br />
     千葉県民のためのバス停情報サイト
     </p>
-    <p class="lead">Coming Soon</p>
+  </div>
+  <div class="col-sm-offset-4 col-sm-4 text-center">
+    <%= form_tag bus_stops_path, :method => 'get' do %>
+      <div class="input-group">
+        <%= text_field_tag :q, params[:q], placeholder: 'バス停名を入力してください。', class: 'form-control' %>
+        <span class="input-group-btn">
+          <%= submit_tag "検索", name: nil, class: 'btn btn-primary' %>
+        </span>
+      </div>
+    <% end %>
   </div>
 </div>

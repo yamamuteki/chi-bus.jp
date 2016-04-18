@@ -1,0 +1,7 @@
+<h1>検索結果</h1>
+<ol>
+  <% @bus_stops.each do |bus_stop| %>
+    <li><%= link_to bus_stop.name, bus_stop_path(bus_stop) %></li>
+  <% end %>
+</ol>
+<%= link_to '戻る', root_path, class: 'btn btn-default' %>

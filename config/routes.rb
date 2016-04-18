@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  resources :bus_stops, only: [:index, :show]
   get 'home/index'
   root 'home#index'
 
