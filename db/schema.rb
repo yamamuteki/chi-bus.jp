@@ -11,7 +11,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160418134009) do
+ActiveRecord::Schema.define(version: 20160419154530) do
+
+  create_table "bus_route_infos", force: :cascade do |t|
+    t.integer  "bus_type"
+    t.string   "operation_company"
+    t.string   "line_name"
+    t.datetime "created_at",        null: false
+    t.datetime "updated_at",        null: false
+  end
+
+  create_table "bus_route_infos_stops", id: false, force: :cascade do |t|
+    t.integer "bus_route_info_id", null: false
+    t.integer "bus_stop_id",       null: false
+  end
 
   create_table "bus_stops", force: :cascade do |t|
     t.string   "gml_id"

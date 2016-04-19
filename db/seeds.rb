@@ -13,6 +13,7 @@ doc.remove_namespaces!
 
 ActiveRecord::Base.transaction do
   BusStop.delete_all
+  BusRouteInfo.delete_all
 
   pos_hash = {}
   doc.css('Point').each do |node|
@@ -26,6 +27,16 @@ ActiveRecord::Base.transaction do
     href = node.at('position')['href'].remove '#'
     pos = pos_hash[href]
     bus_stop = BusStop.create(gml_id: gml_id, name: name, latitude: pos.split[0], longitude: pos.split[1])
+    node.css('BusRouteInformation').each do |info_node|
+      bus_type = info_node.at('busType').text.to_i
+      operation_company = info_node.at('busOperationCompany').text
+      line_name = info_node.at('busLineName').text
+      info = BusRouteInfo.find_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
+      if !info then
+        info = BusRouteInfo.create(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
+      end
+      bus_stop.bus_route_infos << info
+    end
     print "\rBusStop:#{'%5.1f' % (index * 100.0 / count) }%"
   end
   puts
