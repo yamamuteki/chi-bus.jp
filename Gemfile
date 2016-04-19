@@ -47,4 +47,5 @@ group :development do
 end
 
 gem 'bootstrap-sass'
+gem 'geocoder'
 

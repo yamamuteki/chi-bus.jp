@@ -2,4 +2,5 @@
 <p>gml_id <%= @bus_stop.gml_id %></p>
 <p>経度 <%= @bus_stop.latitude %></p>
 <p>緯度 <%= @bus_stop.longitude %></p>
+<p>住所 <%= link_to @bus_stop.address + '付近', "http://maps.google.co.jp/maps?q=#{@bus_stop.latitude},#{@bus_stop.longitude}" %></p>
 <%= link_to '戻る', :back, class: 'btn btn-default' %>
