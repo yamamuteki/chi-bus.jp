@@ -20,7 +20,7 @@ ActiveRecord::Base.transaction do
     pos_hash[node['id']] = node.at('pos').text
   end
 
-  count = doc.css('BusStop').count
+  bus_stop_progress = ProgressBar.create(title: "BusStop", total: doc.css('BusStop').count, format: '%t: %J%% |%B|')
   doc.css('BusStop').each_with_index do |node, index|
     gml_id = node['id']
     name = node.at('busStopName').text
@@ -37,7 +37,6 @@ ActiveRecord::Base.transaction do
       end
       bus_stop.bus_route_infos << info
     end
-    print "\rBusStop:#{'%5.1f' % (index * 100.0 / count) }%"
+    bus_stop_progress.increment
   end
-  puts
 end

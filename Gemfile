@@ -47,5 +47,6 @@ group :development do
 end
 
 gem 'bootstrap-sass'
+gem 'ruby-progressbar'
 gem 'geocoder'
 
