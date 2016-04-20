@@ -10,8 +10,8 @@
     <meta property="og:site_name" content="chi-bus.jp（チーバス・ジェイピー）｜千葉県民のためのバス停情報サイト" />
     <meta property="og:description" content="千葉のカオスを解消する、千葉県民のためのバス停情報サイトです。" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.chi-bus.jp/" />
-    <meta property="og:image" content="https://www.chi-bus.jp<%= url_for(image_path("chi-ba-kun-ogp.png")) %>" />
+    <meta property="og:url" content="<%= root_url %>" />
+    <meta property="og:image" content="<%= image_url("chi-ba-kun-ogp.png") %>" />
     <%= favicon_link_tag %>
     <%= favicon_link_tag 'apple-touch-icon.png', :rel => 'apple-touch-icon', :type => 'image/png' %>
     <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true %>
