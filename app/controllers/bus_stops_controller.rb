@@ -4,6 +4,6 @@ class BusStopsController < ApplicationController
   end
 
   def show
-    @bus_stop = BusStop.find(params[:id])
+    @bus_stop = BusStop.preload(:bus_route_infos).find(params[:id])
   end
 end
