@@ -1,7 +1,5 @@
 <h1><%= @bus_stop.name %></h1>
-<p>経度 <%= @bus_stop.latitude %></p>
-<p>緯度 <%= @bus_stop.longitude %></p>
-<p>住所 <%= link_to @bus_stop.address + '付近', "http://maps.google.co.jp/maps?q=#{@bus_stop.latitude},#{@bus_stop.longitude}" %></p>
+<p><%= link_to @bus_stop.address + '付近', "http://maps.google.co.jp/maps?q=#{@bus_stop.latitude},#{@bus_stop.longitude}" %></p>
 <ol>
   <% @bus_stop.bus_route_infos.each do |info| %>
     <li><%= link_to "#{info.operation_company} #{info.line_name} #{info.bus_type_label}", bus_route_info_path(info) %></li>
