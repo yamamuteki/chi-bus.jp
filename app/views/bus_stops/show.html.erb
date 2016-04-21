@@ -7,4 +7,4 @@
     <li><%= link_to "#{info.operation_company} #{info.line_name} #{info.bus_type_label}", bus_route_info_path(info) %></li>
   <% end %>
 </ol>
-<%= link_to '戻る', :back, class: 'btn btn-default' %>
+<%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
