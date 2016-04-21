@@ -1,5 +1,17 @@
 <h1>検索結果</h1>
-<ol>
+<div class="row">
+  <div class="col-sm-4">
+    <%= form_tag bus_stops_path, :method => 'get' do %>
+      <div class="input-group">
+        <%= text_field_tag :q, params[:q], placeholder: 'バス停名を入力してください。', class: 'form-control' %>
+        <span class="input-group-btn">
+          <%= submit_tag "検索", name: nil, class: 'btn btn-primary' %>
+        </span>
+      </div>
+    <% end %>
+  </div>
+</div>
+<ol class="find-result">
   <% @bus_stops.each do |bus_stop| %>
     <li><%= link_to bus_stop.name, bus_stop_path(bus_stop) %></li>
   <% end %>
