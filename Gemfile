@@ -50,4 +50,5 @@ gem 'bootstrap-sass'
 gem 'ruby-progressbar'
 gem 'geocoder'
 gem 'google-analytics-rails'
+gem 'gmaps4rails'
 

@@ -5,4 +5,20 @@
     <li><%= link_to "#{info.operation_company} #{info.line_name} #{info.bus_type_label}", bus_route_info_path(info) %></li>
   <% end %>
 </ol>
+<div id="map" class="map"></div>
+<script type="text/javascript">
+handler = Gmaps.build('Google');
+handler.buildMap({ provider: { draggable: false, scrollwheel: false }, internal: {id: 'map'}}, function(){
+  markers = handler.addMarkers([
+      {
+        "lat": <%= @bus_stop.latitude %>,
+        "lng": <%= @bus_stop.longitude %>,
+        "infowindow": "<%= @bus_stop.name %>"
+      }
+  ]);
+  handler.bounds.extendWith(markers);
+  handler.fitMapToBounds();
+  handler.getMap().setZoom(15);
+});
+</script>
 <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
