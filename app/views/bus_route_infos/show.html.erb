@@ -5,4 +5,13 @@
     <li><%= link_to "#{bus_stop.name}", bus_stop_path(bus_stop) %></li>
   <% end %>
 </ol>
+<div id="map" class="map"></div>
+<script type="text/javascript">
+handler = Gmaps.build('Google');
+handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+  markers = handler.addMarkers(<%=raw @hash.to_json %>);
+  handler.bounds.extendWith(markers);
+  handler.fitMapToBounds();
+});
+</script>
 <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
