@@ -16,4 +16,18 @@
     <li><%= link_to bus_stop.name, bus_stop_path(bus_stop) %></li>
   <% end %>
 </ol>
+<% if @hash.present? then %>
+  <div id="map" class="map"></div>
+  <script type="text/javascript">
+handler = Gmaps.build('Google');
+handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+  markers = handler.addMarkers(<%=raw @hash.to_json %>);
+  handler.bounds.extendWith(markers);
+  handler.fitMapToBounds();
+  if(<%= @hash.count %> === 1) {
+    handler.getMap().setZoom(15);
+  }
+});
+  </script>
+<% end %>
 <%= link_to '戻る', root_path(q: params[:q]), class: 'btn btn-default' %>
