@@ -9,13 +9,7 @@
 <script type="text/javascript">
 handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false }, internal: {id: 'map'}}, function(){
-  markers = handler.addMarkers([
-      {
-        "lat": <%= @bus_stop.latitude %>,
-        "lng": <%= @bus_stop.longitude %>,
-        "infowindow": "<%= @bus_stop.name %>"
-      }
-  ]);
+  markers = handler.addMarkers(<%=raw @hash.to_json %>);
   handler.bounds.extendWith(markers);
   handler.fitMapToBounds();
   handler.getMap().setZoom(15);
