@@ -21,7 +21,7 @@ handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
   markers = handler.addMarkers(<%=raw @hash.to_json %>);
   polylines = handler.addPolylines(<%=raw @tracks.to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
-  handler.bounds.extendWith(markers);
+  handler.bounds.extendWith(polylines);
   handler.fitMapToBounds();
 });
 </script>
