@@ -8,27 +8,27 @@
         </span>
       </div>
     <% end %>
+    <h1><%= @bus_route_info.line_name %></h1>
+    <p>
+    <%= "#{@bus_route_info.operation_company}" %><br />
+    <%= "#{@bus_route_info.bus_type_label}" %>
+    </p>
+    <% if @bus_route_info.bus_route %>
+      <p>
+      <span class="label label-default"><%= "平日 #{@bus_route_info.bus_route.weekday_rate}" %></span>
+      <span class="label label-primary"><%= "土曜 #{@bus_route_info.bus_route.saturday_rate}" %></span>
+      <span class="label label-danger"><%= "日祝 #{@bus_route_info.bus_route.holiday_rate}" %></span>
+      </p>
+    <% end %>
+    <ol>
+      <% @bus_route_info.bus_stops.each do |bus_stop| %>
+        <li><%= link_to "#{bus_stop.name}", bus_stop_path(bus_stop) %></li>
+      <% end %>
+    </ol>
   </div>
-</div>
-<h1><%= @bus_route_info.line_name %></h1>
-<p>
-<%= "#{@bus_route_info.operation_company}" %><br />
-<%= "#{@bus_route_info.bus_type_label}" %>
-</p>
-<% if @bus_route_info.bus_route %>
-  <p>
-  <span class="label label-default"><%= "平日 #{@bus_route_info.bus_route.weekday_rate}" %></span>
-  <span class="label label-primary"><%= "土曜 #{@bus_route_info.bus_route.saturday_rate}" %></span>
-  <span class="label label-danger"><%= "日祝 #{@bus_route_info.bus_route.holiday_rate}" %></span>
-  </p>
-<% end %>
-<ol>
-  <% @bus_route_info.bus_stops.each do |bus_stop| %>
-    <li><%= link_to "#{bus_stop.name}", bus_stop_path(bus_stop) %></li>
-  <% end %>
-</ol>
-<div id="map" class="map"></div>
-<script type="text/javascript">
+  <div class="col-sm-8">
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
 handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
   markers = handler.addMarkers(<%=raw @hash.to_json %>);
@@ -36,6 +36,8 @@ handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 
   handler.bounds.extendWith(polylines);
   handler.fitMapToBounds();
 });
-</script>
+    </script>
+  </div>
+</div>
 <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
 <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
