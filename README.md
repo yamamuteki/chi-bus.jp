@@ -1,5 +1,25 @@
 ## Change Log
 
+### v1.0.0 (2016/04/24 14:48 +00:00)
+- [89305cd](https://github.com/yamamuteki/chi-bus.jp/commit/89305cdb74c8bb4262366e97aafca6c0ea2a1fb7) Improve an UX (@yamamuteki)
+- [194d523](https://github.com/yamamuteki/chi-bus.jp/commit/194d523713fe15552d48d5b2d39801d1fb57420c) Use a preload (@yamamuteki)
+- [c8a352e](https://github.com/yamamuteki/chi-bus.jp/commit/c8a352ebca075a8db10f7a064b5aeceee41b83a5) Use a Google API browser key (@yamamuteki)
+- [5423b45](https://github.com/yamamuteki/chi-bus.jp/commit/5423b4541b3ab7badab0b451670049554c232478) Use javascript history back with back to home in search results page (@yamamuteki)
+- [7f0d68c](https://github.com/yamamuteki/chi-bus.jp/commit/7f0d68c6826fc34633814107f83f85cecd0c5e2f) Add reference texts (@yamamuteki)
+- [8176f21](https://github.com/yamamuteki/chi-bus.jp/commit/8176f213fc5c719aa07d75b9353544a8aad7f8a1) Add Chi-ba-kun rights (@yamamuteki)
+- [e9d76f8](https://github.com/yamamuteki/chi-bus.jp/commit/e9d76f84e89949e2d99b27b832d77e804321b978) Use JSON serialize for coordinates in a bus route track model (@yamamuteki)
+- [8690c2d](https://github.com/yamamuteki/chi-bus.jp/commit/8690c2dbc3260ed13685feb5aab88e20b4251529) Add a back to home link (@yamamuteki)
+- [ae1f7c9](https://github.com/yamamuteki/chi-bus.jp/commit/ae1f7c9ddeb213616a8987d5d83681b5262f727a) Show all bus route in bus stop pmage (@yamamuteki)
+- [c87a2a1](https://github.com/yamamuteki/chi-bus.jp/commit/c87a2a148217b92cf5455ccf18e0297c76d43939) Change bounds of map for include all polylines (@yamamuteki)
+
+### v0.10.0 (2016/04/24 08:57 +00:00)
+- [560b0d0](https://github.com/yamamuteki/chi-bus.jp/commit/560b0d06fbf9f45c174625233d008367df1c53c2) Show a bus route track in a bus route information page (@yamamuteki)
+- [2d48bb7](https://github.com/yamamuteki/chi-bus.jp/commit/2d48bb7955f8869da7d3bf5645c11696ded8192c) Add a bus route track model (@yamamuteki)
+- [8cc9fc2](https://github.com/yamamuteki/chi-bus.jp/commit/8cc9fc209b1ed3414a2f0822367ed499b15140c5) Show bus operation rates in a bus route information page (@yamamuteki)
+- [0aa7f41](https://github.com/yamamuteki/chi-bus.jp/commit/0aa7f4148f16f84322d0740e044fc78b54fd613b) Add a bus route model (@yamamuteki)
+- [be20846](https://github.com/yamamuteki/chi-bus.jp/commit/be20846517014d575e8603024a7e20195b499d25) Add a bus stop link to a infowindow by a partial template (@yamamuteki)
+- [db1ac10](https://github.com/yamamuteki/chi-bus.jp/commit/db1ac10b3d6332bd75e35ec7bb0a5eb690e1f74e) Add README.md using 'github-changes -o yamamuteki -r chi-bus.jp -f README.md' (@yamamuteki)
+
 ### v0.9.0 (2016/04/23 14:28 +00:00)
 - [90209fe](https://github.com/yamamuteki/chi-bus.jp/commit/90209fe8152cc83b98ddab4052eb8b6acf367ae2) Add bus route maps (@yamamuteki)
 - [62e0f0d](https://github.com/yamamuteki/chi-bus.jp/commit/62e0f0dfbd8b2279aa35e37582e007fa60837f15) Add search result maps (@yamamuteki)
