@@ -1,0 +1,19 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  bus_type: 1
+  operation_company: MyString
+  line_name: MyString
+  weekday_rate: 1.5
+  saturday_rate: 1.5
+  holiday_rate: 1.5
+  note: MyString
+
+two:
+  bus_type: 1
+  operation_company: MyString
+  line_name: MyString
+  weekday_rate: 1.5
+  saturday_rate: 1.5
+  holiday_rate: 1.5
+  note: MyString

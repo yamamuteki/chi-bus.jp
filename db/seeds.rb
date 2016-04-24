@@ -8,12 +8,12 @@
 
 require 'nokogiri'
 
-doc = Nokogiri::XML(open("db/P11-10_12-jgd-g.xml"))
-doc.remove_namespaces!
-
-ActiveRecord::Base.transaction do
+def load_bus_stops
   BusStop.delete_all
   BusRouteInfo.delete_all
+
+  doc = Nokogiri::XML(open('db/P11-10_12-jgd-g.xml'))
+  doc.remove_namespaces!
 
   pos_hash = {}
   doc.css('Point').each do |node|
@@ -31,12 +31,45 @@ ActiveRecord::Base.transaction do
       bus_type = info_node.at('busType').text.to_i
       operation_company = info_node.at('busOperationCompany').text
       line_name = info_node.at('busLineName').text
-      info = BusRouteInfo.find_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
-      if !info then
-        info = BusRouteInfo.create(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
-      end
+      info = BusRouteInfo.find_or_create_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
       bus_stop.bus_route_infos << info
     end
     bus_stop_progress.increment
   end
+end
+
+def load_bus_routes
+  BusRoute.delete_all
+
+  doc = Nokogiri::XML(open('db/N07-11_12.xml'))
+  doc.remove_namespaces!
+
+  bus_route_progress = ProgressBar.create(title: "BusRoute", total: doc.css('BusRoute').count, format: '%t: %J%% |%B|')
+  doc.css('BusRoute').each_with_index do |node, index|
+    href = node.at('brt')['href'].remove '#'
+    bus_type = node.at('bsc').text.to_i
+    operation_company = node.at('boc').text
+    line_name = node.at('bln').text
+    weekday_rate = node.at('rpd').text.to_f
+    saturday_rate = node.at('rps').text.to_f
+    holiday_rate = node.at('rph').text.to_f
+    note = node.at('rmk').text
+    bus_route = BusRoute.find_or_create_by(
+      bus_type: bus_type,
+      operation_company: operation_company,
+      line_name: line_name,
+      weekday_rate: weekday_rate,
+      saturday_rate: saturday_rate,
+      holiday_rate: holiday_rate,
+      note: note
+    )
+    bus_route_info = BusRouteInfo.find_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
+    bus_route_info.bus_route = bus_route if bus_route_info
+    bus_route_progress.increment
+  end
+end
+
+ActiveRecord::Base.transaction do
+  load_bus_stops
+  load_bus_routes
 end
