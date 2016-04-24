@@ -31,4 +31,4 @@ handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 
   </script>
 <% end %>
 <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
-<%= link_to '戻る', root_path(q: params[:q]), class: 'btn btn-default' %>
+<%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
