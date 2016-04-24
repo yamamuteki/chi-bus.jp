@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160424055616) do
+ActiveRecord::Schema.define(version: 20160424072729) do
 
   create_table "bus_route_infos", force: :cascade do |t|
     t.integer  "bus_type"
@@ -30,6 +30,17 @@ ActiveRecord::Schema.define(version: 20160424055616) do
 
   add_index "bus_route_infos_stops", ["bus_route_info_id", "bus_stop_id"], name: "index_bus_route_infos_stops_on_bus_route_info_id_bus_stop_id"
   add_index "bus_route_infos_stops", ["bus_stop_id", "bus_route_info_id"], name: "index_bus_route_infos_stops_on_bus_stop_id_bus_route_info_id"
+
+  create_table "bus_route_tracks", force: :cascade do |t|
+    t.string   "gml_id"
+    t.text     "coordinates"
+    t.integer  "bus_route_id"
+    t.datetime "created_at",   null: false
+    t.datetime "updated_at",   null: false
+  end
+
+  add_index "bus_route_tracks", ["bus_route_id"], name: "index_bus_route_tracks_on_bus_route_id"
+  add_index "bus_route_tracks", ["gml_id"], name: "index_bus_route_tracks_on_gml_id"
 
   create_table "bus_routes", force: :cascade do |t|
     t.integer  "bus_type"

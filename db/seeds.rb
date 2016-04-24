@@ -21,7 +21,7 @@ def load_bus_stops
   end
 
   bus_stop_progress = ProgressBar.create(title: "BusStop", total: doc.css('BusStop').count, format: '%t: %J%% |%B|')
-  doc.css('BusStop').each_with_index do |node, index|
+  doc.css('BusStop').each do |node|
     gml_id = node['id']
     name = node.at('busStopName').text
     href = node.at('position')['href'].remove '#'
@@ -39,13 +39,22 @@ def load_bus_stops
 end
 
 def load_bus_routes
+  BusRouteTrack.delete_all
   BusRoute.delete_all
 
   doc = Nokogiri::XML(open('db/N07-11_12.xml'))
   doc.remove_namespaces!
 
+  bus_route_track_progress = ProgressBar.create(title: "BusRouteTrack", total: doc.css('Curve').count, format: '%t: %J%% |%B|')
+  doc.css('Curve').each do |node|
+    gml_id = node['id']
+    coordinates = node.at('posList').text.strip.each_line.map { |line| line.split.map(&:to_f) }.to_json
+    bus_route_track = BusRouteTrack.create(gml_id: gml_id, coordinates: coordinates)
+    bus_route_track_progress.increment
+  end
+
   bus_route_progress = ProgressBar.create(title: "BusRoute", total: doc.css('BusRoute').count, format: '%t: %J%% |%B|')
-  doc.css('BusRoute').each_with_index do |node, index|
+  doc.css('BusRoute').each do |node|
     href = node.at('brt')['href'].remove '#'
     bus_type = node.at('bsc').text.to_i
     operation_company = node.at('boc').text
@@ -63,6 +72,7 @@ def load_bus_routes
       holiday_rate: holiday_rate,
       note: note
     )
+    bus_route.bus_route_tracks << BusRouteTrack.find_by(gml_id: href)
     bus_route_info = BusRouteInfo.find_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
     bus_route_info.bus_route = bus_route if bus_route_info
     bus_route_progress.increment
