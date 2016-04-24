@@ -48,7 +48,7 @@ def load_bus_routes
   bus_route_track_progress = ProgressBar.create(title: "BusRouteTrack", total: doc.css('Curve').count, format: '%t: %J%% |%B|')
   doc.css('Curve').each do |node|
     gml_id = node['id']
-    coordinates = node.at('posList').text.strip.each_line.map { |line| line.split.map(&:to_f) }.to_json
+    coordinates = node.at('posList').text.strip.each_line.map { |line| line.split.map(&:to_f) }
     bus_route_track = BusRouteTrack.create(gml_id: gml_id, coordinates: coordinates)
     bus_route_track_progress.increment
   end
