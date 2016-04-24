@@ -15,5 +15,12 @@ class BusStopsController < ApplicationController
       marker.lng bus_stop.longitude
       marker.infowindow render_to_string partial: 'infowindow', locals: { bus_stop: bus_stop }
     end
+    @tracks = @bus_stop.bus_route_infos.flat_map do |info|
+      info.bus_route.bus_route_tracks.map do |track|
+        JSON.parse(track.coordinates).map do |coordinate|
+          { lat: coordinate[0], lng: coordinate[1] }
+        end
+      end
+    end
   end
 end

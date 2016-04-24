@@ -10,9 +10,9 @@
 handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false }, internal: {id: 'map'}}, function(){
   markers = handler.addMarkers(<%=raw @hash.to_json %>);
-  handler.bounds.extendWith(markers);
+  polylines = handler.addPolylines(<%=raw @tracks.to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
+  handler.bounds.extendWith(polylines);
   handler.fitMapToBounds();
-  handler.getMap().setZoom(15);
 });
 </script>
 <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
