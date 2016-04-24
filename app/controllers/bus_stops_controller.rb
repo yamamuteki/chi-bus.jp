@@ -9,7 +9,7 @@ class BusStopsController < ApplicationController
   end
 
   def show
-    @bus_stop = BusStop.preload(:bus_route_infos).find(params[:id])
+    @bus_stop = BusStop.preload(bus_route_infos: [bus_route: [:bus_route_tracks]]).find(params[:id])
     @hash = Gmaps4rails.build_markers(@bus_stop) do |bus_stop, marker|
       marker.lat bus_stop.latitude
       marker.lng bus_stop.longitude
