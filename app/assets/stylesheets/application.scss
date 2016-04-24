@@ -43,8 +43,14 @@ textarea {
   margin-bottom: 10px;
 }
 
-.chi-ba-kun-rights {
+ul.reference-info {
+  list-style-type: none;
   font-size: 50%;
   color: #ccc;
   margin-top: 20px;
+}
+
+ul.reference-info li:before {
+  content: '出典：';
+  margin-left: -30px;
 }
