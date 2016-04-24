@@ -1,5 +1,6 @@
 class BusStopsController < ApplicationController
   def index
+    session[:q] = params[:q]
     @bus_stops = BusStop.where("name like '%#{params[:q]}%'").limit(100)
     @hash = Gmaps4rails.build_markers(@bus_stops) do |bus_stop, marker|
       marker.lat bus_stop.latitude

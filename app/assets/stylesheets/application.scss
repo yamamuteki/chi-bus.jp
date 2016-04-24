@@ -17,6 +17,15 @@
 @import "bootstrap-sprockets";
 @import "bootstrap";
 
+h1, .h1, h2, .h2, h3, .h3 {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.page-top-search-box {
+  margin-top: 10px;
+}
+
 input[type='text'],
 input[type='number'],
 textarea {
