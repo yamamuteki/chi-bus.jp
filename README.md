@@ -1,5 +1,9 @@
 ## Change Log
 
+### v1.1.0 (2016/04/24 15:41 +00:00)
+- [0b15e73](https://github.com/yamamuteki/chi-bus.jp/commit/0b15e730b14daeb3b141341ff675a73031259eb0) Improve desktop UX (@yamamuteki)
+- [b13358b](https://github.com/yamamuteki/chi-bus.jp/commit/b13358b4fcc39c2dff18de43d5e7feaa8ca7f62c) Update README.md (@yamamuteki)
+
 ### v1.0.0 (2016/04/24 14:48 +00:00)
 - [89305cd](https://github.com/yamamuteki/chi-bus.jp/commit/89305cdb74c8bb4262366e97aafca6c0ea2a1fb7) Improve an UX (@yamamuteki)
 - [194d523](https://github.com/yamamuteki/chi-bus.jp/commit/194d523713fe15552d48d5b2d39801d1fb57420c) Use a preload (@yamamuteki)
