@@ -1,13 +1,6 @@
 <div class="row page-top-search-box">
   <div class="col-sm-4">
-    <%= form_tag bus_stops_path, :method => 'get' do %>
-      <div class="input-group">
-        <%= text_field_tag :q, session[:q], placeholder: 'バス停名を入力してください。', class: 'form-control' %>
-        <span class="input-group-btn">
-          <%= submit_tag "検索", name: nil, class: 'btn btn-primary' %>
-        </span>
-      </div>
-    <% end %>
+    <%= render partial: 'bus_stop_search_form' %>
     <h1><%= @bus_route_info.line_name %></h1>
     <p>
     <%= "#{@bus_route_info.operation_company}" %><br />

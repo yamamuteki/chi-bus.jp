@@ -1,0 +1,8 @@
+<%= form_tag bus_stops_path, :method => 'get' do %>
+  <div class="input-group">
+    <%= text_field_tag :q, params[:q] || session[:q], placeholder: 'バス停名を省略すると周辺を検索します。', class: 'form-control' %>
+    <span class="input-group-btn">
+      <%= submit_tag '検索', name: nil, class: 'btn btn-primary', data: { geolocation: '' } %>
+    </span>
+  </div>
+<% end %>
