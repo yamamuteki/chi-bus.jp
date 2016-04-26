@@ -1,29 +1,31 @@
-<div class="row page-top-search-box">
-  <div class="col-sm-4">
-    <%= render partial: 'bus_stop_search_form' %>
-    <h1>検索結果</h1>
-    <ol class="find-result">
-      <% @bus_stops.each do |bus_stop| %>
-        <li><%= link_to bus_stop.name, bus_stop_path(bus_stop) %></li>
-      <% end %>
-    </ol>
-  </div>
-  <div class="col-sm-8">
-    <% if @hash.present? then %>
-      <div id="map" class="map"></div>
-      <script type="text/javascript">
+<% cache params[:q].to_s + params[:position].to_s do %>
+  <div class="row page-top-search-box">
+    <div class="col-sm-4">
+      <%= render partial: 'bus_stop_search_form' %>
+      <h1>検索結果</h1>
+      <ol class="find-result">
+        <% @bus_stops.each do |bus_stop| %>
+          <li><%= link_to bus_stop.name, bus_stop_path(bus_stop) %></li>
+        <% end %>
+      </ol>
+    </div>
+    <div class="col-sm-8">
+      <% if @bus_stops.present? then %>
+        <div id="map" class="map"></div>
+        <script type="text/javascript">
 handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
-  markers = handler.addMarkers(<%=raw @hash.to_json %>);
+  markers = handler.addMarkers(<%=raw build_markers(@bus_stops).to_json %>);
   handler.bounds.extendWith(markers);
   handler.fitMapToBounds();
-  if(<%= @hash.count %> === 1) {
+  if(<%= @bus_stops.count(:all) %> === 1) {
     handler.getMap().setZoom(15);
   }
 });
-      </script>
-    <% end %>
+        </script>
+      <% end %>
+    </div>
   </div>
-</div>
-<%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
-<%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
+  <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
+  <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
+<% end %>
