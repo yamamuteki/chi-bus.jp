@@ -1,5 +1,18 @@
 ## Change Log
 
+### upcoming (2016/04/26 18:01 +00:00)
+- [d7fe90c](https://github.com/yamamuteki/chi-bus.jp/commit/d7fe90ca912afdd0987589d43e0c69a1f897b6d6) Update README.md (@yamamuteki)
+
+### v1.3.0 (2016/04/26 17:44 +00:00)
+- [daacf9c](https://github.com/yamamuteki/chi-bus.jp/commit/daacf9cf101b251e38869726d7ea9d178b6a9969) Fix remeins of keywords into fragment cache (@yamamuteki)
+- [b86c926](https://github.com/yamamuteki/chi-bus.jp/commit/b86c926233d1ee075d30f360af41dc84bb220058) Use fragment cache (@yamamuteki)
+- [0a9a7c3](https://github.com/yamamuteki/chi-bus.jp/commit/0a9a7c310d01ab5b229a6fcaa3559cdf5c4aa540) Add sort order for bus stops and bus routes (@yamamuteki)
+- [655dca3](https://github.com/yamamuteki/chi-bus.jp/commit/655dca3a517b05cb5cce58fbbcb8d593d60a9cee) Improve UX (@yamamuteki)
+
+### v1.2.0 (2016/04/25 14:59 +00:00)
+- [ebcad9a](https://github.com/yamamuteki/chi-bus.jp/commit/ebcad9a469f8bb9f8a97ccd756227ff162c35283) Add an around bus stop search using HTML5 geolocation API (@yamamuteki)
+- [146e8a1](https://github.com/yamamuteki/chi-bus.jp/commit/146e8a1d30530069da1e05e51dc04557e1bc0ab4) Update README.md (@yamamuteki)
+
 ### v1.1.0 (2016/04/24 15:41 +00:00)
 - [0b15e73](https://github.com/yamamuteki/chi-bus.jp/commit/0b15e730b14daeb3b141341ff675a73031259eb0) Improve desktop UX (@yamamuteki)
 - [b13358b](https://github.com/yamamuteki/chi-bus.jp/commit/b13358b4fcc39c2dff18de43d5e7feaa8ca7f62c) Update README.md (@yamamuteki)
