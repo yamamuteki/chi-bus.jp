@@ -15,7 +15,7 @@
         <script type="text/javascript">
 handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
-  markers = handler.addMarkers(<%=raw build_markers(@bus_stops).to_json %>);
+  markers = handler.addMarkers(<%=raw build_markers(@bus_stops, params[:position]).to_json %>);
   handler.bounds.extendWith(markers);
   handler.fitMapToBounds();
   if(<%= @bus_stops.count(:all) %> === 1) {
