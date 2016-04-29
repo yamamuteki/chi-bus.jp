@@ -12,6 +12,7 @@ module ApplicationHelper
         marker.picture({ url: image_path('bluedot.png'), width: '34', height: '34' })
       end
     end
+    hash
   end
   def build_routes_hash(bus_route_infos)
     tracks = bus_route_infos.flat_map do |info|
