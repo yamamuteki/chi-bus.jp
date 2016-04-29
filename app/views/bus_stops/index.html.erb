@@ -22,7 +22,7 @@ handler.buildMap({ provider: { draggable: <%= (!request.from_smartphone?).to_s %
   markers = handler.addMarkers(<%=raw build_markers(@bus_stops, params[:position]).to_json %>);
   handler.bounds.extendWith(markers);
   handler.fitMapToBounds();
-  if(<%= @bus_stops.count(:all) %> === 1) {
+  if(<%= @bus_stops.size %> === 1) {
     handler.getMap().setZoom(15);
   }
 });
