@@ -1,5 +1,6 @@
 class BusRoutesController < ApplicationController
   def show
-    @bus_route = BusRoute.preload(:bus_route_tracks, bus_stops: [:bus_routes]).find(params[:id])
+    # Don't use preload for keeping bus stop order (Use fragment cache)
+    @bus_route = BusRoute.find(params[:id])
   end
 end

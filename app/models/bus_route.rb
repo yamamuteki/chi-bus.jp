@@ -1,7 +1,7 @@
 class BusRoute < ActiveRecord::Base
   has_many :bus_route_tracks
-  has_many :bus_route_bus_stops
-  has_many :bus_stops, -> { order('name, latitude DESC') }, through: :bus_route_bus_stops
+  has_many :bus_route_bus_stops, -> { order(:bus_stop_number) }
+  has_many :bus_stops, through: :bus_route_bus_stops
 
   enum bus_type: { private_bus: 1, public_bus: 2, community_bus: 3, demand_bus: 4, other: 5 }
 

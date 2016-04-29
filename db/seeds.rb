@@ -76,7 +76,34 @@ def load_bus_stops
   end
 end
 
+def order_bus_stops
+  BusRouteBusStop.update_all(bus_stop_number: nil)
+
+  order_progress = ProgressBar.create(title: "Ordering", total: BusRoute.count, format: '%t: %J%% |%B|')
+  BusRoute.all.each do |bus_route|
+    index = 0
+    bus_route.bus_route_tracks.sort_by{|t| t.coordinates[0][1] }.each do |track|
+      track.coordinates.each do |coordinate|
+        latitude = coordinate[0]
+        longitude = coordinate[1]
+        bus_route.bus_route_bus_stops.each do |bus_route_bus_stop|
+          next if bus_route_bus_stop.bus_stop_number
+          bus_stop = bus_route_bus_stop.bus_stop
+          distance = (bus_stop.latitude - latitude) ** 2 + (bus_stop.longitude - longitude) ** 2
+          if distance < 0.000001 then
+            bus_route_bus_stop.bus_stop_number = index += 1
+            bus_route_bus_stop.save
+            break
+          end
+        end
+      end
+    end
+    order_progress.increment
+  end
+end
+
 ActiveRecord::Base.transaction do
   load_bus_routes
   load_bus_stops
+  order_bus_stops
 end
