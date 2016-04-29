@@ -6,7 +6,7 @@ module ApplicationHelper
       marker.infowindow render partial: 'infowindow', locals: { bus_stop: bus_stop }
     end
     if position then
-      hash + Gmaps4rails.build_markers([position]) do |bus_stop, marker|
+      hash = hash + Gmaps4rails.build_markers([position]) do |bus_stop, marker|
         marker.lat position.split(',')[0]
         marker.lng position.split(',')[1]
         marker.picture({ url: image_path('bluedot.png'), width: '34', height: '34' })
