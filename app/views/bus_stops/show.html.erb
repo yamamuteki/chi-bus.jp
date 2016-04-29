@@ -18,7 +18,7 @@
       <div id="map" class="map"></div>
       <script type="text/javascript">
 handler = Gmaps.build('Google');
-handler.buildMap({ provider: { draggable: false, scrollwheel: false }, internal: {id: 'map'}}, function(){
+handler.buildMap({ provider: { draggable: <%= (!request.from_smartphone?).to_s %>, scrollwheel: false }, internal: {id: 'map'}}, function(){
   markers = handler.addMarkers(<%=raw build_markers(@bus_stop).to_json %>);
   polylines = handler.addPolylines(<%=raw build_routes_hash(@bus_stop.bus_routes).to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
   handler.bounds.extendWith(polylines);
