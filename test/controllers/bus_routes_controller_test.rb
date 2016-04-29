@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class BusRouteInfosControllerTest < ActionController::TestCase
+class BusRoutesControllerTest < ActionController::TestCase
   test "should get show" do
     get :show
     assert_response :success

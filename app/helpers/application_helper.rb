@@ -14,9 +14,9 @@ module ApplicationHelper
     end
     hash
   end
-  def build_routes_hash(bus_route_infos)
-    tracks = bus_route_infos.flat_map do |info|
-      info.bus_route.bus_route_tracks.map do |track|
+  def build_routes_hash(bus_routes)
+    tracks = bus_routes.flat_map do |bus_route|
+      bus_route.bus_route_tracks.map do |track|
         track.coordinates.map do |coordinate|
           { lat: coordinate[0], lng: coordinate[1] }
         end

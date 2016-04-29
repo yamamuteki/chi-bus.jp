@@ -8,36 +8,6 @@
 
 require 'nokogiri'
 
-def load_bus_stops
-  BusStop.delete_all
-  BusRouteInfo.delete_all
-
-  doc = Nokogiri::XML(open('db/P11-10_12-jgd-g.xml'))
-  doc.remove_namespaces!
-
-  pos_hash = {}
-  doc.css('Point').each do |node|
-    pos_hash[node['id']] = node.at('pos').text
-  end
-
-  bus_stop_progress = ProgressBar.create(title: "BusStop", total: doc.css('BusStop').count, format: '%t: %J%% |%B|')
-  doc.css('BusStop').each do |node|
-    gml_id = node['id']
-    name = node.at('busStopName').text
-    href = node.at('position')['href'].remove '#'
-    pos = pos_hash[href]
-    bus_stop = BusStop.create(gml_id: gml_id, name: name, latitude: pos.split[0], longitude: pos.split[1])
-    node.css('BusRouteInformation').each do |info_node|
-      bus_type = info_node.at('busType').text.to_i
-      operation_company = info_node.at('busOperationCompany').text
-      line_name = info_node.at('busLineName').text
-      info = BusRouteInfo.find_or_create_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
-      bus_stop.bus_route_infos << info
-    end
-    bus_stop_progress.increment
-  end
-end
-
 def load_bus_routes
   BusRouteTrack.delete_all
   BusRoute.delete_all
@@ -73,13 +43,40 @@ def load_bus_routes
       note: note
     )
     bus_route.bus_route_tracks << BusRouteTrack.find_by(gml_id: href)
-    bus_route_info = BusRouteInfo.find_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
-    bus_route_info.bus_route = bus_route if bus_route_info
     bus_route_progress.increment
   end
 end
 
+def load_bus_stops
+  BusStop.delete_all
+
+  doc = Nokogiri::XML(open('db/P11-10_12-jgd-g.xml'))
+  doc.remove_namespaces!
+
+  pos_hash = {}
+  doc.css('Point').each do |node|
+    pos_hash[node['id']] = node.at('pos').text
+  end
+
+  bus_stop_progress = ProgressBar.create(title: "BusStop", total: doc.css('BusStop').count, format: '%t: %J%% |%B|')
+  doc.css('BusStop').each do |node|
+    gml_id = node['id']
+    name = node.at('busStopName').text
+    href = node.at('position')['href'].remove '#'
+    pos = pos_hash[href]
+    bus_stop = BusStop.create(gml_id: gml_id, name: name, latitude: pos.split[0], longitude: pos.split[1])
+    node.css('BusRouteInformation').each do |info_node|
+      bus_type = info_node.at('busType').text.to_i
+      operation_company = info_node.at('busOperationCompany').text
+      line_name = info_node.at('busLineName').text
+      bus_route = BusRoute.find_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
+      bus_stop.bus_routes << bus_route if bus_route
+    end
+    bus_stop_progress.increment
+  end
+end
+
 ActiveRecord::Base.transaction do
-  load_bus_stops
   load_bus_routes
+  load_bus_stops
 end

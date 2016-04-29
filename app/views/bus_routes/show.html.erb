@@ -2,22 +2,20 @@
   <div class="row page-top-search-box">
     <div class="col-xs-12 col-sm-4">
       <%= render partial: 'bus_stop_search_form' %>
-      <h1><%= @bus_route_info.line_name %></h1>
+      <h1><%= @bus_route.line_name %></h1>
       <p>
-      <%= "#{@bus_route_info.operation_company}" %><br />
-      <%= "#{@bus_route_info.bus_type_label}" %>
+      <%= "#{@bus_route.operation_company}" %><br />
+      <%= "#{@bus_route.bus_type_label}" %>
       </p>
-      <% if @bus_route_info.bus_route %>
-        <p>
-        <span class="label label-default"><%= "平日 #{@bus_route_info.bus_route.weekday_rate}" %></span>
-        <span class="label label-primary"><%= "土曜 #{@bus_route_info.bus_route.saturday_rate}" %></span>
-        <span class="label label-danger"><%= "日祝 #{@bus_route_info.bus_route.holiday_rate}" %></span>
-        </p>
-      <% end %>
+      <p>
+      <span class="label label-default"><%= "平日 #{@bus_route.weekday_rate}" %></span>
+      <span class="label label-primary"><%= "土曜 #{@bus_route.saturday_rate}" %></span>
+      <span class="label label-danger"><%= "日祝 #{@bus_route.holiday_rate}" %></span>
+      </p>
       <div class="list-group">
-        <% @bus_route_info.bus_stops.each_with_index do |bus_stop, index| %>
+        <% @bus_route.bus_stops.each_with_index do |bus_stop, index| %>
           <a href="<%= bus_stop_path(bus_stop) %>" class="list-group-item">
-            <div class="badge"><%= bus_stop.bus_route_infos.size %></div>
+            <div class="badge"><%= bus_stop.bus_routes.size %></div>
             <div class="list-number"><%= "#{index + 1}." %></div>
             <div class="list-content"><%= "#{bus_stop.name}" %></div>
           </a>
@@ -29,8 +27,8 @@
       <script type="text/javascript">
 handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
-  markers = handler.addMarkers(<%=raw build_markers(@bus_route_info.bus_stops).to_json %>);
-  polylines = handler.addPolylines(<%=raw build_routes_hash([@bus_route_info]).to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
+  markers = handler.addMarkers(<%=raw build_markers(@bus_route.bus_stops).to_json %>);
+  polylines = handler.addPolylines(<%=raw build_routes_hash([@bus_route]).to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
   handler.bounds.extendWith(polylines);
   handler.fitMapToBounds();
 });

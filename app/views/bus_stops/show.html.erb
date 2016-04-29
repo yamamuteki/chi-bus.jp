@@ -5,11 +5,11 @@
       <h1><%= @bus_stop.name %></h1>
       <p><%= link_to @bus_stop.address + '付近', "http://maps.google.co.jp/maps?q=#{@bus_stop.latitude},#{@bus_stop.longitude}" %></p>
       <div class="list-group">
-        <% @bus_stop.bus_route_infos.each_with_index do |info, index| %>
-          <a href="<%= bus_route_info_path(info) %>" class="list-group-item">
-            <div class="badge"><%= info.bus_stops.size %></div>
+        <% @bus_stop.bus_routes.each_with_index do |bus_route, index| %>
+          <a href="<%= bus_route_path(bus_route) %>" class="list-group-item">
+            <div class="badge"><%= bus_route.bus_stops.size %></div>
             <div class="list-number"><%= "#{index + 1}." %></div>
-            <div class="list-content"><%= "#{info.operation_company} #{info.line_name}" %></div>
+            <div class="list-content"><%= "#{bus_route.operation_company} #{bus_route.line_name}" %></div>
           </a>
         <% end %>
       </div>
@@ -20,7 +20,7 @@
 handler = Gmaps.build('Google');
 handler.buildMap({ provider: { draggable: false, scrollwheel: false }, internal: {id: 'map'}}, function(){
   markers = handler.addMarkers(<%=raw build_markers(@bus_stop).to_json %>);
-  polylines = handler.addPolylines(<%=raw build_routes_hash(@bus_stop.bus_route_infos).to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
+  polylines = handler.addPolylines(<%=raw build_routes_hash(@bus_stop.bus_routes).to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
   handler.bounds.extendWith(polylines);
   handler.fitMapToBounds();
 });

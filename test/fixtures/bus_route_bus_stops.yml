@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  bus_route_id: 
+  bus_stop_id: 
+  bus_stop_number: 1
+
+two:
+  bus_route_id: 
+  bus_stop_id: 
+  bus_stop_number: 1
