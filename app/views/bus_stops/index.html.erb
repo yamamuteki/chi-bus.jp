@@ -6,6 +6,7 @@
       <div class="list-group">
         <% @bus_stops.each_with_index do |bus_stop, index| %>
           <a href="<%=bus_stop_path(bus_stop) %>" class="list-group-item">
+            <div class="badge"><%= bus_stop.bus_route_infos.size %></div>
             <div class="list-number"><%= "#{index + 1}." %></div>
             <div class="list-content"><%= "#{bus_stop.name}" %></div>
           </a>
