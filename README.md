@@ -1,9 +1,30 @@
 ## Change Log
 
+### v1.6.0 (2016/04/29 17:52 +00:00)
+- [4c9abdf](https://github.com/yamamuteki/chi-bus.jp/commit/4c9abdf15d71a1b4d074685977338ca7dff49389) Improve bus stops sort order in bus route page (@yamamuteki)
+- [c9e767a](https://github.com/yamamuteki/chi-bus.jp/commit/c9e767af8e802b9db75bce5b1933a2c8a9395b69) Enable to draggable map from not smartphone (@yamamuteki)
+- [1e7e3e5](https://github.com/yamamuteki/chi-bus.jp/commit/1e7e3e57adb65ed7dc2739f77ef603b7bf739655) Use view port height (@yamamuteki)
+- [d6e3243](https://github.com/yamamuteki/chi-bus.jp/commit/d6e3243004f0bf58eef468b4d6490f4b96c11500) Destroy bus route info model (@yamamuteki)
+
+### v1.5.0 (2016/04/29 09:34 +00:00)
+- [6fbeeeb](https://github.com/yamamuteki/chi-bus.jp/commit/6fbeeeb5de57f70f8dc9f09f23ae6112e70f4dbe) Improve UX (@yamamuteki)
+- [aa4e409](https://github.com/yamamuteki/chi-bus.jp/commit/aa4e40905a8521aaab39be94d10b8508cfc1bae5) Reduce SQL (@yamamuteki)
+- [133985f](https://github.com/yamamuteki/chi-bus.jp/commit/133985f1bc6d0e0f7c49d8a5ce9be0347eb63a12) Change display to 12 bus stops using geolocation (@yamamuteki)
+- [a24c3a3](https://github.com/yamamuteki/chi-bus.jp/commit/a24c3a3f89877d894fdc9e11aa4f577267349202) Show bus stops and routes count (@yamamuteki)
+
+### v1.4.2 (2016/04/29 07:38 +00:00)
+- [223935b](https://github.com/yamamuteki/chi-bus.jp/commit/223935b6d65541ea85d0fac3ba9115fa5ad8c9ec) Improve UX (@yamamuteki)
+- [e816c4a](https://github.com/yamamuteki/chi-bus.jp/commit/e816c4a5d39f97cce17f136341945bbefb1d00e5) Improve UX (@yamamuteki)
+- [0afdaf1](https://github.com/yamamuteki/chi-bus.jp/commit/0afdaf1260ba3f4546df3cc0029c4c40322ceab4) Fix invisible current position marker with position params (@yamamuteki)
+
+### v1.4.1 (2016/04/29 04:47 +00:00)
+- [f677873](https://github.com/yamamuteki/chi-bus.jp/commit/f6778733b8912d3f765e5897a8c883165cb5f9cb) Fix invisible bus stop markers with position params (@yamamuteki)
+- [b280bf3](https://github.com/yamamuteki/chi-bus.jp/commit/b280bf39f60b67759d1f081e42c1d64ec4623332) Update README.md (@yamamuteki)
+
 ### v1.4.0 (2016/04/28 15:55 +00:00)
 - [270a6ce](https://github.com/yamamuteki/chi-bus.jp/commit/270a6cecae4bdfa781d01e2b178b7c80481286c2) Disable fragment cache in development environment (@yamamuteki)
-- [b17c8d4](https://github.com/yamamuteki/chi-bus.jp/commit/b17c8d4c60d8cf8e71d55dd62705e00896b2388a) Show current position when to use HTML5 geolocation API (@yamamuteki)
 - [068747d](https://github.com/yamamuteki/chi-bus.jp/commit/068747d1fd4a0c8e9c4896fa7ff11eb22a6a80f7) Enable to draggable map from not smartphone (@yamamuteki)
+- [b17c8d4](https://github.com/yamamuteki/chi-bus.jp/commit/b17c8d4c60d8cf8e71d55dd62705e00896b2388a) Show current position when to use HTML5 geolocation API (@yamamuteki)
 - [eb70cf3](https://github.com/yamamuteki/chi-bus.jp/commit/eb70cf3b6b4da3b9b238101c921505e6efdb252d) Add quiet assets gem (@yamamuteki)
 - [7059655](https://github.com/yamamuteki/chi-bus.jp/commit/70596557de807cf192cb97d4fd601c2b17278698) Update README.md (@yamamuteki)
 
