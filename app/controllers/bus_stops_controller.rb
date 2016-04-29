@@ -5,7 +5,7 @@ class BusStopsController < ApplicationController
     elsif params[:position]
       latitude = params[:position].split(',')[0].to_f
       longitude = params[:position].split(',')[1].to_f
-      @bus_stops = BusStop.preload(:bus_route_infos).near([latitude, longitude], 20000).limit(25)
+      @bus_stops = BusStop.preload(:bus_route_infos).near([latitude, longitude], 20000).limit(12)
     else
       @bus_stops = []
     end
