@@ -3,11 +3,14 @@
     <div class="col-sm-4">
       <%= render partial: 'bus_stop_search_form' %>
       <h1>検索結果</h1>
-      <ol class="find-result">
-        <% @bus_stops.each do |bus_stop| %>
-          <li><%= link_to bus_stop.name, bus_stop_path(bus_stop) %></li>
+      <div class="list-group">
+        <% @bus_stops.each_with_index do |bus_stop, index| %>
+          <a href="<%=bus_stop_path(bus_stop) %>" class="list-group-item">
+            <div class="list-number"><%= "#{index + 1}." %></div>
+            <div class="list-content"><%= "#{bus_stop.name}" %></div>
+          </a>
         <% end %>
-      </ol>
+      </div>
     </div>
     <div class="col-sm-8">
       <% if @bus_stops.present? then %>

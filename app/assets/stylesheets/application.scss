@@ -42,10 +42,6 @@ textarea {
   }
 }
 
-.find-result {
-  margin-top: 10px;
-}
-
 .map {
   width: 100%;
   height: 600px;
@@ -59,3 +55,12 @@ textarea {
   padding-left: 20px;
 }
 
+.list-number {
+  float: left;
+  text-align: right;
+  width: 20px;
+}
+
+.list-content {
+  margin-left: 25px;
+}

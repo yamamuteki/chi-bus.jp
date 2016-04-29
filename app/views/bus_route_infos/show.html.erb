@@ -14,11 +14,14 @@
         <span class="label label-danger"><%= "日祝 #{@bus_route_info.bus_route.holiday_rate}" %></span>
         </p>
       <% end %>
-      <ol>
-        <% @bus_route_info.bus_stops.each do |bus_stop| %>
-          <li><%= link_to "#{bus_stop.name}", bus_stop_path(bus_stop) %></li>
+      <div class="list-group">
+        <% @bus_route_info.bus_stops.each_with_index do |bus_stop, index| %>
+          <a href="<%= bus_stop_path(bus_stop) %>" class="list-group-item">
+            <div class="list-number"><%= "#{index + 1}." %></div>
+            <div class="list-content"><%= "#{bus_stop.name}" %></div>
+          </a>
         <% end %>
-      </ol>
+      </div>
     </div>
     <div class="col-sm-8">
       <div id="map" class="map"></div>

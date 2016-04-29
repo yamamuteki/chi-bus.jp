@@ -4,11 +4,14 @@
       <%= render partial: 'bus_stop_search_form' %>
       <h1><%= @bus_stop.name %></h1>
       <p><%= link_to @bus_stop.address + '付近', "http://maps.google.co.jp/maps?q=#{@bus_stop.latitude},#{@bus_stop.longitude}" %></p>
-      <ol>
-        <% @bus_stop.bus_route_infos.each do |info| %>
-          <li><%= link_to "#{info.operation_company} #{info.line_name}", bus_route_info_path(info) %></li>
+      <div class="list-group">
+        <% @bus_stop.bus_route_infos.each_with_index do |info, index| %>
+          <a href="<%= bus_route_info_path(info) %>" class="list-group-item">
+            <div class="list-number"><%= "#{index + 1}." %></div>
+            <div class="list-content"><%= "#{info.operation_company} #{info.line_name}" %></div>
+          </a>
         <% end %>
-      </ol>
+      </div>
     </div>
     <div class="col-sm-8">
       <div id="map" class="map"></div>
