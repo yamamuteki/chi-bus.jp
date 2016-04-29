@@ -52,14 +52,10 @@ textarea {
   margin-bottom: 10px;
 }
 
-ul.reference-info {
-  list-style-type: none;
+.reference-info {
   font-size: 50%;
   color: #ccc;
   margin-top: 20px;
+  padding-left: 20px;
 }
 
-ul.reference-info li:before {
-  content: '出典：';
-  margin-left: -30px;
-}
