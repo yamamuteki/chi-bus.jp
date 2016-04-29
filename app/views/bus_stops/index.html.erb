@@ -1,6 +1,6 @@
 <% cache params[:q].to_s + params[:position].to_s do %>
   <div class="row page-top-search-box">
-    <div class="col-sm-4">
+    <div class="col-xs-12 col-sm-4">
       <%= render partial: 'bus_stop_search_form' %>
       <h1>検索結果</h1>
       <div class="list-group">
@@ -13,7 +13,7 @@
         <% end %>
       </div>
     </div>
-    <div class="col-sm-8">
+    <div class="col-xs-12 col-sm-8">
       <% if @bus_stops.present? then %>
         <div id="map" class="map"></div>
         <script type="text/javascript">
