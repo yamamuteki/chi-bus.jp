@@ -18,7 +18,7 @@
         <div id="map" class="map"></div>
         <script type="text/javascript">
 handler = Gmaps.build('Google');
-handler.buildMap({ provider: { draggable: <%= (!request.from_smartphone?).to_s %>, scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+handler.buildMap({ provider: { draggable: from_smartphone(), scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
   markers = handler.addMarkers(<%=raw build_markers(@bus_stops, params[:position]).to_json %>);
   handler.bounds.extendWith(markers);
   handler.fitMapToBounds();
