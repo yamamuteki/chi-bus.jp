@@ -17,3 +17,11 @@ success = (position) ->
 
 error = (err) ->
   console.warn('ERROR(' + err.code + '): ' + err.message)
+
+$ ->
+  $("a[data-search-map-center]").click (e) ->
+    center = handler.getMap().getCenter()
+    lat = center.lat()
+    long = center.lng()
+    window.location.href = '/bus_stops/?position=' + lat + ',' + long
+    false

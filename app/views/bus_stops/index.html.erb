@@ -32,4 +32,5 @@ handler.buildMap({ provider: { draggable: from_smartphone(), scrollwheel: false,
   </div>
   <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
   <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
+  <%= link_to '中心付近を検索', '#', class: 'btn btn-default pull-right', data: { 'search-map-center' => '' } %>
 <% end %>
