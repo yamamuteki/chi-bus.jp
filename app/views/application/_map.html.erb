@@ -1,0 +1,31 @@
+<% if bus_stops.present? then %>
+  <div id="map" class="map"></div>
+  <script type="text/javascript">
+handler = Gmaps.build('Google');
+handler.buildMap({ provider: { draggable: from_smartphone(), scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+  markers = handler.addMarkers(<%=raw build_markers(bus_stops, params[:position]).to_json %>);
+  <% if bus_routes.present? then %>
+      polylines = handler.addPolylines(<%=raw build_routes_hash(bus_routes).to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
+    handler.bounds.extendWith(polylines);
+  <% else %>
+    handler.bounds.extendWith(markers);
+  <% end %>
+    handler.fitMapToBounds();
+  center_marker = handler.addMarker({
+    "lat": handler.getMap().getCenter().lat(),
+    "lng": handler.getMap().getCenter().lng(),
+    "picture": {
+      "url": "<%= image_path('red_cross.png') %>",
+      "width":  32,
+      "height": 32
+    },
+  });
+  google.maps.event.addListener(handler.getMap(), 'center_changed', function(){
+    center_marker.getServiceObject().setPosition(this.getCenter());
+  });
+  <% if bus_stops.size == 1 && !bus_routes.present? then %>
+      handler.getMap().setZoom(15);
+  <% end %>
+});
+  </script>
+<% end %>

@@ -14,20 +14,7 @@
       </div>
     </div>
     <div class="col-xs-12 col-sm-8">
-      <% if @bus_stops.present? then %>
-        <div id="map" class="map"></div>
-        <script type="text/javascript">
-handler = Gmaps.build('Google');
-handler.buildMap({ provider: { draggable: from_smartphone(), scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
-  markers = handler.addMarkers(<%=raw build_markers(@bus_stops, params[:position]).to_json %>);
-  handler.bounds.extendWith(markers);
-  handler.fitMapToBounds();
-  if(<%= @bus_stops.size %> === 1) {
-    handler.getMap().setZoom(15);
-  }
-});
-        </script>
-      <% end %>
+      <%= render partial: 'map', locals: { bus_stops: @bus_stops, bus_routes: nil } %>
     </div>
   </div>
   <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
