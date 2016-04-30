@@ -23,7 +23,7 @@
     <script src='//google-maps-utility-library-v3.googlecode.com/svn/tags/infobox/1.1.9/src/infobox_packed.js' type='text/javascript'></script>
     <script type="text/javascript">
 function from_smartphone(){
-  return <%= (!request.from_smartphone?).to_s %>;
+  return <%= (request.from_smartphone?).to_s %>;
 }
     </script>
   </head>

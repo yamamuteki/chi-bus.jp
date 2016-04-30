@@ -14,9 +14,6 @@
       </div>
     </div>
     <div class="col-xs-12 col-sm-8">
-      <div class="clearfix">
-        <%= link_to '中心付近を検索', '#', class: 'btn btn-default pull-right', data: { 'search-map-center' => '' } %>
-      </div>
       <%= render partial: 'map', locals: { bus_stops: @bus_stops, bus_routes: nil } %>
     </div>
   </div>

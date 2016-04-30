@@ -1,8 +1,14 @@
 <% if bus_stops.present? then %>
+  <div class="clearfix">
+    <%= link_to '中心付近を検索', '#', class: 'btn btn-default pull-right', data: { 'search-map-center' => '' } %>
+    <div class="checkbox pull-right draggable-checkbox">
+      <label><input type="checkbox" data-toggle-draggable> 地図をロック</label>
+    </div>
+  </div>
   <div id="map" class="map"></div>
   <script type="text/javascript">
 handler = Gmaps.build('Google');
-handler.buildMap({ provider: { draggable: from_smartphone(), scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+handler.buildMap({ provider: { scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
   markers = handler.addMarkers(<%=raw build_markers(bus_stops, params[:position]).to_json %>);
   <% if bus_routes.present? then %>
       polylines = handler.addPolylines(<%=raw build_routes_hash(bus_routes).to_json %>, { strokeColor: '#00f', strokeOpacity: 0.5 });
