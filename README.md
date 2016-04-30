@@ -1,5 +1,17 @@
 ## Change Log
 
+### v1.7.0 (2016/04/30 13:07 +00:00)
+- [424888b](https://github.com/yamamuteki/chi-bus.jp/commit/424888befe0bd952b68e0f3a74f48d04bf2ca767) Add underscore-min.map (@yamamuteki)
+- [6076871](https://github.com/yamamuteki/chi-bus.jp/commit/60768710b6ba3e08baba15df7e59767c2af057cf) Add map scroll lock checkbox (@yamamuteki)
+- [2ebddb4](https://github.com/yamamuteki/chi-bus.jp/commit/2ebddb4440fae93c32dd8c20c4000895208f0ed9) Improve UX (@yamamuteki)
+- [4ec5c58](https://github.com/yamamuteki/chi-bus.jp/commit/4ec5c58023e45973d7aa717fb8e724b838488261) Enable turbolinks using jquery-turbolinks gem (@yamamuteki)
+- [ca481ea](https://github.com/yamamuteki/chi-bus.jp/commit/ca481ea1ffe37b5d3b5868dba68cdd6dbf8546c0) Show tooltops with bus stop names on bus stop markers (@yamamuteki)
+- [4760fad](https://github.com/yamamuteki/chi-bus.jp/commit/4760fad3efbdb7fea6cf11d7c20dc16dc66b8ef8) Improve UX (@yamamuteki)
+- [59e43c7](https://github.com/yamamuteki/chi-bus.jp/commit/59e43c75d889fec9a77806fee72032aec116a889) Add map center marker (@yamamuteki)
+- [3cedad1](https://github.com/yamamuteki/chi-bus.jp/commit/3cedad110c1cc5355eff0816e95986248ee7a70a) Add bus stops search near map center (@yamamuteki)
+- [df64ce2](https://github.com/yamamuteki/chi-bus.jp/commit/df64ce2e31513827e505bc0b3fe82d871ee9d43e) Fix draggable setting with fragment cache (@yamamuteki)
+- [938ffe1](https://github.com/yamamuteki/chi-bus.jp/commit/938ffe1a7c0035bdbe339b3a1e7d834c9877c0b1) Update README.md (@yamamuteki)
+
 ### v1.6.0 (2016/04/29 17:52 +00:00)
 - [4c9abdf](https://github.com/yamamuteki/chi-bus.jp/commit/4c9abdf15d71a1b4d074685977338ca7dff49389) Improve bus stops sort order in bus route page (@yamamuteki)
 - [c9e767a](https://github.com/yamamuteki/chi-bus.jp/commit/c9e767af8e802b9db75bce5b1933a2c8a9395b69) Enable to draggable map from not smartphone (@yamamuteki)
