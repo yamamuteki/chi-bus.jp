@@ -3,6 +3,7 @@ module ApplicationHelper
     hash = Gmaps4rails.build_markers(bus_stops) do |bus_stop, marker|
       marker.lat bus_stop.latitude
       marker.lng bus_stop.longitude
+      marker.title bus_stop.name
       marker.infowindow render partial: 'infowindow', locals: { bus_stop: bus_stop }
     end
     if position then
