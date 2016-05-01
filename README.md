@@ -1,5 +1,10 @@
 ## Change Log
 
+### v1.8.0 (2016/05/01 11:05 +00:00)
+- [e7c3eb7](https://github.com/yamamuteki/chi-bus.jp/commit/e7c3eb77e59b25a218298a67f1db7fabe68b510e) Add bus stops and routes in Tokyo (@yamamuteki)
+- [1321992](https://github.com/yamamuteki/chi-bus.jp/commit/13219928005d49aa70b496a11b0aac0b42afdb9e) Revert "Enable turbolinks using jquery-turbolinks gem" (@yamamuteki)
+- [9ff4c3f](https://github.com/yamamuteki/chi-bus.jp/commit/9ff4c3f7a1e04c1274885c25d3347611482dcf09) Update README.md (@yamamuteki)
+
 ### v1.7.0 (2016/04/30 13:07 +00:00)
 - [424888b](https://github.com/yamamuteki/chi-bus.jp/commit/424888befe0bd952b68e0f3a74f48d04bf2ca767) Add underscore-min.map (@yamamuteki)
 - [6076871](https://github.com/yamamuteki/chi-bus.jp/commit/60768710b6ba3e08baba15df7e59767c2af057cf) Add map scroll lock checkbox (@yamamuteki)
