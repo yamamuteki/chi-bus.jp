@@ -8,18 +8,15 @@
 
 require 'nokogiri'
 
-def load_bus_routes
-  BusRouteTrack.delete_all
-  BusRoute.delete_all
-
-  doc = Nokogiri::XML(open('db/N07-11_12.xml'))
+def load_bus_routes xml_path
+  doc = Nokogiri::XML(open(xml_path))
   doc.remove_namespaces!
 
   bus_route_track_progress = ProgressBar.create(title: "BusRouteTrack", total: doc.css('Curve').count, format: '%t: %J%% |%B|')
   doc.css('Curve').each do |node|
     gml_id = node['id']
     coordinates = node.at('posList').text.strip.each_line.map { |line| line.split.map(&:to_f) }
-    bus_route_track = BusRouteTrack.create(gml_id: gml_id, coordinates: coordinates)
+    bus_route_track = BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: coordinates)
     bus_route_track_progress.increment
   end
 
@@ -42,15 +39,13 @@ def load_bus_routes
       holiday_rate: holiday_rate,
       note: note
     )
-    bus_route.bus_route_tracks << BusRouteTrack.find_by(gml_id: href)
+    bus_route.bus_route_tracks << BusRouteTrack.find_by(gml_id: "#{xml_path}/#{href}")
     bus_route_progress.increment
   end
 end
 
-def load_bus_stops
-  BusStop.delete_all
-
-  doc = Nokogiri::XML(open('db/P11-10_12-jgd-g.xml'))
+def load_bus_stops xml_path
+  doc = Nokogiri::XML(open(xml_path))
   doc.remove_namespaces!
 
   pos_hash = {}
@@ -103,7 +98,13 @@ def order_bus_stops
 end
 
 ActiveRecord::Base.transaction do
-  load_bus_routes
-  load_bus_stops
+  BusRouteBusStop.delete_all
+  BusRouteTrack.delete_all
+  BusRoute.delete_all
+  BusStop.delete_all
+  load_bus_routes 'db/N07-11_12.xml'
+  load_bus_routes 'db/N07-11_13.xml'
+  load_bus_stops 'db/P11-10_12-jgd-g.xml'
+  load_bus_stops 'db/P11-10_13-jgd-g.xml'
   order_bus_stops
 end

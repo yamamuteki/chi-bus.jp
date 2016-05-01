@@ -33,12 +33,12 @@ textarea {
 }
 
 .title {
-  padding-top: 60px;
+  padding-top: 120px;
 }
 
-@media screen and (min-width: 992px) {
+@media screen and (max-width: 736px) {
   .title {
-    padding-top: 150px;
+    padding-top: 30px;
   }
 }
 
