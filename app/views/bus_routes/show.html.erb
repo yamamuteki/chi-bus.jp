@@ -1,28 +1,27 @@
 <% cache params[:id] do %>
-  <div class="row page-top-search-box">
+  <div class="row">
+    <div class="col-xs-12 col-sm-8">
+      <%= render partial: 'map', locals: { bus_stops: @bus_route.bus_stops, bus_routes: [@bus_route] } %>
+    </div>
     <div class="col-xs-12 col-sm-4">
-      <%= render partial: 'bus_stop_search_form' %>
-      <h1><%= @bus_route.line_name %></h1>
+      <h3><%= @bus_route.line_name %></h3>
       <p><%= "#{@bus_route.operation_company} #{@bus_route.bus_type_label}" %></p>
       <p>
       <span class="label label-default"><%= "平日 #{@bus_route.weekday_rate}" %></span>
       <span class="label label-primary"><%= "土曜 #{@bus_route.saturday_rate}" %></span>
       <span class="label label-danger"><%= "日祝 #{@bus_route.holiday_rate}" %></span>
       </p>
-      <div class="list-group">
-        <% @bus_route.bus_stops.each_with_index do |bus_stop, index| %>
-          <a href="<%= bus_stop_path(bus_stop) %>" class="list-group-item">
-            <div class="badge"><%= bus_stop.bus_routes.size %></div>
-            <div class="list-number"><%= "#{index + 1}." %></div>
-            <div class="list-content"><%= "#{bus_stop.name}" %></div>
-          </a>
-        <% end %>
+      <div class="list-window">
+        <div class="list-group">
+          <% @bus_route.bus_stops.each_with_index do |bus_stop, index| %>
+            <a href="<%= bus_stop_path(bus_stop) %>" class="list-group-item">
+              <div class="badge"><%= bus_stop.bus_routes.size %></div>
+              <div class="list-number"><%= "#{index + 1}." %></div>
+              <div class="list-content"><%= "#{bus_stop.name}" %></div>
+            </a>
+          <% end %>
+        </div>
       </div>
     </div>
-    <div class="col-xs-12 col-sm-8">
-      <%= render partial: 'map', locals: { bus_stops: @bus_route.bus_stops, bus_routes: [@bus_route] } %>
-    </div>
   </div>
-  <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
-  <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
 <% end %>

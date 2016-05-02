@@ -1,23 +1,22 @@
 <% cache params[:id] do %>
-  <div class="row page-top-search-box">
-    <div class="col-xs-12 col-sm-4">
-      <%= render partial: 'bus_stop_search_form' %>
-      <h1><%= @bus_stop.name %></h1>
-      <p><%= link_to @bus_stop.address + '付近', "http://maps.google.co.jp/maps?q=#{@bus_stop.latitude},#{@bus_stop.longitude}" %></p>
-      <div class="list-group">
-        <% @bus_stop.bus_routes.each_with_index do |bus_route, index| %>
-          <a href="<%= bus_route_path(bus_route) %>" class="list-group-item">
-            <div class="badge"><%= bus_route.bus_stops.size %></div>
-            <div class="list-number"><%= "#{index + 1}." %></div>
-            <div class="list-content"><%= "#{bus_route.operation_company} #{bus_route.line_name}" %></div>
-          </a>
-        <% end %>
-      </div>
-    </div>
+  <div class="row">
     <div class="col-xs-12 col-sm-8">
       <%= render partial: 'map', locals: { bus_stops: [@bus_stop], bus_routes: @bus_stop.bus_routes } %>
     </div>
+    <div class="col-xs-12 col-sm-4">
+      <h3><%= @bus_stop.name %></h3>
+      <p><%= link_to @bus_stop.address + '付近', "http://maps.google.co.jp/maps?q=#{@bus_stop.latitude},#{@bus_stop.longitude}" %></p>
+      <div class="list-window">
+        <div class="list-group">
+          <% @bus_stop.bus_routes.each_with_index do |bus_route, index| %>
+            <a href="<%= bus_route_path(bus_route) %>" class="list-group-item">
+              <div class="badge"><%= bus_route.bus_stops.size %></div>
+              <div class="list-number"><%= "#{index + 1}." %></div>
+              <div class="list-content"><%= "#{bus_route.operation_company} #{bus_route.line_name}" %></div>
+            </a>
+          <% end %>
+        </div>
+      </div>
+    </div>
   </div>
-  <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
-  <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
 <% end %>

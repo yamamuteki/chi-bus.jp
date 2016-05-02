@@ -1,27 +1,26 @@
-<div class="row title">
-  <div class="col-md-12 text-center">
-    <%= image_tag 'chi-ba-kun-small.png'%>
-  </div>
-  <div class="col-md-12 text-center">
-    <h1>
-      chi-bus.jp<br />
-      <small>チーバス・ジェイピー</small>
-    </h1>
-  </div>
-  <div class="col-md-12 text-center">
-    <p class="lead">
-    千葉のカオスを解消する<br />
-    千葉県民のためのバス停情報サイト<br />
-    <small>（こっそり東京都にも対応）</small>
-    </p>
-  </div>
-  <div class="col-sm-offset-4 col-sm-4 text-center">
-    <%= render partial: 'bus_stop_search_form' %>
-  </div>
-  <div class="col-sm-offset-4 col-sm-4">
-    <ul class="reference-info">
-      <li>本サービスでは国土交通省国土政策局の平成22年度バス停留所データ及び平成23年度バスルートデータを利用しています。</li>
-      <li>千葉県PRマスコットキャラクター　チーバくん</li>
-    </ul>
+<div class="row home-parent">
+  <div class="row home-child">
+    <div class="col-xs-12 text-center">
+      <%= image_tag 'chi-ba-kun-small.png'%>
+      <h1>
+        chi-bus.jp<br />
+        <small>チーバス・ジェイピー</small>
+      </h1>
+      <p class="lead">
+      千葉のカオスを解消する<br />
+      千葉県民のためのバス停情報サイト<br />
+      <small>（こっそり東京都にも対応）</small>
+      </p>
+    </div>
+    <div class="col-xs-12 col-sm-offset-4 col-sm-4">
+      <%= render partial: 'bus_stop_search_form', locals: { menu: false } %>
+      <script type="text/javascript">
+$(".home-parent #q").focus();
+      </script>
+      <ul class="reference-info">
+        <li>本サービスでは国土交通省国土政策局の平成22年度バス停留所データ及び平成23年度バスルートデータを利用しています。</li>
+        <li>千葉県PRマスコットキャラクター　チーバくん</li>
+      </ul>
+    </div>
   </div>
 </div>

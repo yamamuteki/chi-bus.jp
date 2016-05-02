@@ -1,8 +1,17 @@
-<%= form_tag bus_stops_path, :method => 'get' do %>
+<%= form_tag bus_stops_path, method: 'get' do %>
   <div class="input-group">
-    <%= text_field_tag :q, params[:q], placeholder: 'バス停名を省略すると周辺を検索します。', class: 'form-control' %>
+    <% if menu then %>
+      <span class="input-group-btn">
+        <a title="ホーム" href="<%= root_path %>" class="btn btn-default">
+          <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
+        </a>
+      </span>
+    <% end %>
+    <%= text_field_tag :q, params[:q], placeholder: 'バス停名を省略すると周辺を検索します', class: 'form-control' %>
     <span class="input-group-btn">
-      <%= submit_tag '検索', name: nil, class: 'btn btn-primary', data: { geolocation: '' } %>
+      <%= button_tag title: '検索', name: nil, class: 'btn btn-primary', data: { geolocation: '' } do %>
+        <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
+      <% end %>
     </span>
   </div>
 <% end %>

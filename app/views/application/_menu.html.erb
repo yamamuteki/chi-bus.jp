@@ -1,0 +1,15 @@
+<div class="row menu-bar">
+  <div class="col-xs-12 col-sm-8 hidden-xs">
+    <h2>
+      <a href="<%= root_path %>" class="brand-link">
+        <img src="<%= image_path "apple-touch-icon.png" %>" width="34" height="34" class="round-image">
+        chi-bus.jp
+      </a>
+    </h2>
+  </div>
+  <div class="col-xs-12 col-sm-4">
+    <div class="search-box">
+      <%= render partial: 'bus_stop_search_form', locals: { menu: true } %>
+    </div>
+  </div>
+</div>

@@ -2,8 +2,8 @@
 # All this logic will automatically be available in application.js.
 # You can use CoffeeScript in this file: http://coffeescript.org/
 $ ->
-  $("input[data-geolocation]").click (e) ->
-    return if ($('#q').val() != '') # keyword search
+  $("button[data-geolocation]").click (e) ->
+    return if $(this).closest("form").find("#q").val() != '' # keyword search
     if (navigator.geolocation)
       navigator.geolocation.getCurrentPosition(success, error)
     else
@@ -40,3 +40,8 @@ $ ->
   $(document).on 'page:change', ->
     $(".turbolinks-loading").fadeOut 100
     return
+
+$ ->
+  $(window).on 'load resize', ->
+    return unless $(".list-window").length
+    $(".list-window").height($(window).height() - $(".list-window").offset().top - 10)

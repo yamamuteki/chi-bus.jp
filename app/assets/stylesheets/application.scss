@@ -17,35 +17,42 @@
 @import "bootstrap-sprockets";
 @import "bootstrap";
 
-h1, .h1, h2, .h2, h3, .h3 {
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-
-.page-top-search-box {
-  margin-top: 10px;
-}
-
+/* iPhoneでinputが拡大されるのを無効化 */
 input[type='text'],
 input[type='number'],
 textarea {
   font-size: 16px;
 }
 
-.title {
-  padding-top: 120px;
-}
-
-@media screen and (max-width: 736px) {
-  .title {
-    padding-top: 30px;
-  }
-}
-
-.map {
-  width: 100%;
-  height: 85vh;
+h1, .h1, h2, .h2, h3, .h3 {
+  margin-top: 10px;
   margin-bottom: 10px;
+}
+
+.menu-bar {
+  background-color: #f9f9f9;
+  margin-bottom: 10px;
+}
+
+.round-image {
+  border-radius: 5px;
+}
+
+.brand-link:hover,
+.brand-link:active,
+{
+  text-decoration: none;
+}
+
+.home-parent {
+  height: calc(100vh - 68px);
+  display: table;
+  table-layout: fixed;
+}
+
+.home-child {
+  display: table-cell;
+  vertical-align: middle;
 }
 
 .reference-info {
@@ -53,6 +60,28 @@ textarea {
   color: #ccc;
   margin-top: 20px;
   padding-left: 20px;
+}
+
+.map {
+  width: 100%;
+  height: calc(100vh - 120px);
+  margin-bottom: 10px;
+}
+
+/* 高さはJSで指定 */
+.list-window {
+  overflow: scroll;
+}
+
+@media screen and (max-width: 768px) {
+  .list-window {
+    overflow: visible;
+  }
+}
+
+.search-box {
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .list-number {
@@ -66,7 +95,7 @@ textarea {
 }
 
 .draggable-checkbox {
-  margin-right: 10px;
+  margin-left: 10px;
 }
 
 .turbolinks-loading {

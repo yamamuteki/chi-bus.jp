@@ -1,22 +1,24 @@
 <% cache params[:q].to_s + params[:position].to_s do %>
-  <div class="row page-top-search-box">
-    <div class="col-xs-12 col-sm-4">
-      <%= render partial: 'bus_stop_search_form' %>
-      <h1>検索結果</h1>
-      <div class="list-group">
-        <% @bus_stops.each_with_index do |bus_stop, index| %>
-          <a href="<%=bus_stop_path(bus_stop) %>" class="list-group-item">
-            <div class="badge"><%= bus_stop.bus_routes.size %></div>
-            <div class="list-number"><%= "#{index + 1}." %></div>
-            <div class="list-content"><%= "#{bus_stop.name}" %></div>
-          </a>
-        <% end %>
-      </div>
-    </div>
+  <div class="row">
     <div class="col-xs-12 col-sm-8">
       <%= render partial: 'map', locals: { bus_stops: @bus_stops, bus_routes: nil } %>
     </div>
+    <div class="col-xs-12 col-sm-4">
+      <h3>検索結果</h3>
+      <% if @bus_stops.empty? then %>
+        <p>検索結果はありません。</p>
+      <% end %>
+      <div class="list-window">
+        <div class="list-group">
+          <% @bus_stops.each_with_index do |bus_stop, index| %>
+            <a href="<%=bus_stop_path(bus_stop) %>" class="list-group-item">
+              <div class="badge"><%= bus_stop.bus_routes.size %></div>
+              <div class="list-number"><%= "#{index + 1}." %></div>
+              <div class="list-content"><%= "#{bus_stop.name}" %></div>
+            </a>
+          <% end %>
+        </div>
+      </div>
+    </div>
   </div>
-  <%= link_to 'ホーム', root_path, class: 'btn btn-default' %>
-  <%= link_to '戻る', 'javascript:history.back()', class: 'btn btn-default' %>
 <% end %>
