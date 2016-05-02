@@ -44,4 +44,7 @@ $ ->
 $ ->
   $(window).on 'load resize', ->
     return unless $(".list-window").length
-    $(".list-window").height($(window).height() - $(".list-window").offset().top - 10)
+    if $(window).width() < 768
+      $(".list-window").height("auto")
+    else
+      $(".list-window").height($(window).height() - $(".list-window").offset().top - 10)
