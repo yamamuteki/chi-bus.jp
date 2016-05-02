@@ -42,7 +42,7 @@ $ ->
     return
 
 $ ->
-  $(window).on 'load resize', ->
+  $(window).on 'load resize page:change', ->
     return unless $(".list-window").length
     if $(window).width() < 768
       $(".list-window").height("auto")
