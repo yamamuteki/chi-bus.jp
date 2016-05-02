@@ -1,5 +1,12 @@
 ## Change Log
 
+### v2.0.0 (2016/05/02 12:20 +00:00)
+- [9cf9f50](https://github.com/yamamuteki/chi-bus.jp/commit/9cf9f50e461e01969b3476fd2fd2ce65ff63f72b) Improve UX greatly (@yamamuteki)
+
+### v1.9.0 (2016/05/01 14:12 +00:00)
+- [c1cd3fa](https://github.com/yamamuteki/chi-bus.jp/commit/c1cd3fa5209d336495945b0e9005255e0ec6cef7) Enable turbolinks using jquery-turbolinks gem (@yamamuteki)
+- [a8d752f](https://github.com/yamamuteki/chi-bus.jp/commit/a8d752f567ce6b8f7a94a9698bfb25b9ae703d1c) Update README.md (@yamamuteki)
+
 ### v1.8.0 (2016/05/01 11:05 +00:00)
 - [e7c3eb7](https://github.com/yamamuteki/chi-bus.jp/commit/e7c3eb77e59b25a218298a67f1db7fabe68b510e) Add bus stops and routes in Tokyo (@yamamuteki)
 - [1321992](https://github.com/yamamuteki/chi-bus.jp/commit/13219928005d49aa70b496a11b0aac0b42afdb9e) Revert "Enable turbolinks using jquery-turbolinks gem" (@yamamuteki)
@@ -39,8 +46,8 @@
 - [b280bf3](https://github.com/yamamuteki/chi-bus.jp/commit/b280bf39f60b67759d1f081e42c1d64ec4623332) Update README.md (@yamamuteki)
 
 ### v1.4.0 (2016/04/28 15:55 +00:00)
-- [270a6ce](https://github.com/yamamuteki/chi-bus.jp/commit/270a6cecae4bdfa781d01e2b178b7c80481286c2) Disable fragment cache in development environment (@yamamuteki)
 - [068747d](https://github.com/yamamuteki/chi-bus.jp/commit/068747d1fd4a0c8e9c4896fa7ff11eb22a6a80f7) Enable to draggable map from not smartphone (@yamamuteki)
+- [270a6ce](https://github.com/yamamuteki/chi-bus.jp/commit/270a6cecae4bdfa781d01e2b178b7c80481286c2) Disable fragment cache in development environment (@yamamuteki)
 - [b17c8d4](https://github.com/yamamuteki/chi-bus.jp/commit/b17c8d4c60d8cf8e71d55dd62705e00896b2388a) Show current position when to use HTML5 geolocation API (@yamamuteki)
 - [eb70cf3](https://github.com/yamamuteki/chi-bus.jp/commit/eb70cf3b6b4da3b9b238101c921505e6efdb252d) Add quiet assets gem (@yamamuteki)
 - [7059655](https://github.com/yamamuteki/chi-bus.jp/commit/70596557de807cf192cb97d4fd601c2b17278698) Update README.md (@yamamuteki)
