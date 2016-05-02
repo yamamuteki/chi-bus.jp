@@ -75,7 +75,7 @@ def order_bus_stops
   BusRouteBusStop.update_all(bus_stop_number: nil)
 
   order_progress = ProgressBar.create(title: "Ordering", total: BusRoute.count, format: '%t: %J%% |%B|')
-  BusRoute.all.each do |bus_route|
+  BusRoute.find_each do |bus_route|
     index = 0
     bus_route.bus_route_tracks.sort_by{|t| t.coordinates[0][1] }.each do |track|
       track.coordinates.each do |coordinate|
@@ -104,7 +104,9 @@ ActiveRecord::Base.transaction do
   BusStop.delete_all
   load_bus_routes 'db/N07-11_12.xml'
   load_bus_routes 'db/N07-11_13.xml'
+  load_bus_routes 'db/N07-11_14.xml'
   load_bus_stops 'db/P11-10_12-jgd-g.xml'
   load_bus_stops 'db/P11-10_13-jgd-g.xml'
+  load_bus_stops 'db/P11-10_14-jgd-g.xml'
   order_bus_stops
 end
