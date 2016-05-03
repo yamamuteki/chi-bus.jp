@@ -1,0 +1,122 @@
+<div class="row">
+  <div class="col-xs-12 col-sm-4 text-center">
+    <h2>chi-bus.jpについて</h2>
+    <%= gravatar_for('yama@muteki.com', 200) %>
+    <p>
+    yama@muteki<br />
+    千葉県千葉市在住<br />
+    会社員
+    </p>
+    <p class="lead">このバス停に来るバスは、<br />どこから来て、<br />どこへ行くのだろう？</p>
+  </div>
+  <div class="col-xs-12 col-sm-8 list-window">
+    <div class="panel panel-default">
+      <div class="panel-heading">このサービスは何ですか？</div>
+      <div class="panel-body">
+        <p>
+        chi-bus.jp（チーバス・ジェイピー）は選択したバス停を通過する全てのバス路線を地図上で一度に表示出来る便利なサービスです。
+        2016年4月に千葉県対応でサービスインし、現在、東京都、神奈川県にも対応しています。
+        </p>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">どうしてこのサービスを作ろうと思ったのですか？</div>
+      <div class="panel-body">
+        <blockquote>
+          「このバス停にくるバスは、どこから来て、どこに行くのだろう？」
+        </blockquote>
+        <p>
+        バス路線は電車と違って一般の地図では簡単に確認できません。
+        千葉のバス路線は複雑で、最寄りのバス停でさえどこからバスが来てどこへ行くのか把握するのは困難を極めます。
+        オープンデータとGoogle Maps APIを使えば、最寄りのバス停に来るバスがどこから来てどこへ行くのか簡単に把握出来るのでは？
+        そんな想いがこのサービス開発のきっかけです。
+        </p>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">他のサービスとはどう違いますか？</div>
+      <div class="panel-body">
+        <p>
+        他のサービスとの最も大きな違いは、選択したバス停を通過するバス路線を簡単に一覧出来る点です。
+        他のサービスで提供しているような時刻表や乗換案内に関するサービスは今のところ提供していません。
+        </p>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">スマートフォンやタブレットでも利用できますか？</div>
+      <div class="panel-body">
+        <p>
+        PCの他、スマートフォンやタブレットにも対応しています。
+        動作テストはiPhone5SとiPad mini 4で行っています。
+        </p>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">このサービスはどうやって使うのですか？</div>
+      <div class="panel-body">
+        <p>
+        以下の手順を参考にお使いください。
+        </p>
+        <ol>
+          <li>検索欄にバス停名を入力して検索してください。</li>
+          <li>一覧からバス停を選択すると、選択したバス停を通過する全てのバス路線が一覧表示されます。</li>
+          <li>一覧からバス路線を選択すると、そのバス路線で停車するバス停が一覧表示されます。</li>
+        </ol>
+        <ul>
+          <li>バス停名を省略すると現在地を取得して付近のバス停が一覧表示されます。</li>
+          <li>地図をスクロールしてから「中心付近を検索」を押すと中心付近のバス停を検索できます。<br />（スマートフォンでは地図のロックを解除してください）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">バス停及びバス路線の情報はいつのものですか？</div>
+      <div class="panel-body">
+        <p>
+        本サービスで利用しているバス停及びバス路線の情報は、国土交通省国土政策局国土情報課GISホームページの国土数値情報ダウンロードサービスで公開されている以下のオープンデータを利用しています。
+        </p>
+        <ul>
+          <li>国土数値情報バス停留所データ（データ作成年度平成22年度）</li>
+          <li>国土数値情報バスルート（データ作成年度平成23年度）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">このサービスを使う上での注意事項はありますか？</div>
+      <div class="panel-body">
+        <p>
+        以下の点にご注意ください。
+        </p>
+        <ul>
+          <li>このサービスは個人の趣味で運営されています。</li>
+          <li>時刻表や乗換案内は今のところ提供していません。時刻表に関するオープンデータが提供されていないためです。</li>
+          <li>Google Maps APIのアクセス数制限により地図が表示されない場合があります。時間を空けてご利用ください。</li>
+          <li>バス路線選択時に表示されるバス停一覧の表示順序は停車順序ではありません。これは上記のデータに停車順情報が含まれないためです。独自のアルゴリズムによって停車順序を予測していますが完全ではないため、地図上の表示で判断してください。</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">今後はどのようにバージョンアップしていきますか？</div>
+      <div class="panel-body">
+        <p>
+        今後の課題として、バス停は複数のバス運営会社で共用されているのに、掲示されている時刻表は各社別々のため、そのバス停を次に通過するバスがどこへ行くのか非常にわかりにくいという問題がります。
+        ソーシャルログインを使ってユーザの皆さんから時刻表情報を収集し、その情報をバス停毎にまとめて、統合時刻表のようなものを作れたら素敵だと思っています。
+        </p>
+      </div>
+    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">もっと詳しい仕組みを知りたいのですが？</div>
+      <div class="panel-body">
+        <p>
+        本サービスはオープンソースとしてソースコードを公開しています。
+        下記のリンクからソースコードをご覧ください。
+        </p>
+        <dl>
+          <dt>GitHub プロジェクトページ</dt>
+          <dd><a href="https://github.com/yamamuteki/chi-bus.jp">https://github.com/yamamuteki/chi-bus.jp</a></dd>
+          <dt>GitHub 作者プロフィールページ</dt>
+          <dd><a href="https://github.com/yamamuteki">https://github.com/yamamuteki</a></dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>

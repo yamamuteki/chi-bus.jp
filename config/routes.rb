@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
   resources :bus_routes, only: [:show]
   resources :bus_stops, only: [:index, :show]
-  get 'home/index'
+  get 'about', to: 'about#index'
   root 'home#index'
 
   # The priority is based upon order of creation: first created -> highest priority.

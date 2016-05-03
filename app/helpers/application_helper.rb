@@ -15,6 +15,7 @@ module ApplicationHelper
     end
     hash
   end
+
   def build_routes_hash(bus_routes)
     tracks = bus_routes.flat_map do |bus_route|
       bus_route.bus_route_tracks.map do |track|
@@ -23,5 +24,11 @@ module ApplicationHelper
         end
       end
     end
+  end
+
+  def gravatar_for(email, size)
+    gravatar_id = Digest::MD5::hexdigest(email.downcase)
+    gravatar_url = "https://secure.gravatar.com/avatar/#{gravatar_id}?s=#{size}"
+    image_tag(gravatar_url, class: 'gravatar')
   end
 end

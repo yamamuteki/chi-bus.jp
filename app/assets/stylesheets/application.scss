@@ -55,11 +55,20 @@ h1, .h1, h2, .h2, h3, .h3 {
   vertical-align: middle;
 }
 
+.sub-title {
+  font-size: 40%;
+}
+
 .reference-info {
   font-size: 50%;
   color: #ccc;
   margin-top: 20px;
   padding-left: 20px;
+}
+
+.gravatar {
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .map {
