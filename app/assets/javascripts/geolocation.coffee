@@ -46,5 +46,7 @@ $ ->
     return unless $(".list-window").length
     if $(window).width() < 768
       $(".list-window").height("auto")
+      $(".list-window").css("overflow", "visible")
     else
       $(".list-window").height($(window).height() - $(".list-window").offset().top - 10)
+      $(".list-window").css("overflow", "scroll")
