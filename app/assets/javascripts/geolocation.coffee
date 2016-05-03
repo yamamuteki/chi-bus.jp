@@ -44,6 +44,7 @@ $ ->
 $ ->
   $(window).on 'load resize page:change', ->
     return unless $(".list-window").length
+    $(".map").height($(window).height() - 120)
     if $(window).width() < 768
       $(".list-window").height("auto")
       $(".list-window").css("overflow", "visible")

@@ -64,7 +64,7 @@ h1, .h1, h2, .h2, h3, .h3 {
 
 .map {
   width: 100%;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 120px); /* iPad対応のためJSで調整 */
   margin-bottom: 10px;
 }
 
