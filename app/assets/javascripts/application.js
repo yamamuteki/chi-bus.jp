@@ -18,3 +18,32 @@
 //= require jquery.turbolinks
 //= require turbolinks
 //= require_tree .
+
+function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath) {
+  handler = Gmaps.build('Google');
+  handler.buildMap({ provider: { scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+    markers = handler.addMarkers(markersJson);
+    if (polylinesJson) {
+      polylines = handler.addPolylines(polylinesJson, { strokeColor: '#00f', strokeOpacity: 0.5 });
+      handler.bounds.extendWith(polylines);
+    } else {
+      handler.bounds.extendWith(markers);
+    }
+    handler.fitMapToBounds();
+    centerMarker = handler.addMarker({
+      "lat": handler.getMap().getCenter().lat(),
+      "lng": handler.getMap().getCenter().lng(),
+      "picture": {
+        "url": centerMakerImagePath,
+        "width":  32,
+        "height": 32
+      },
+    });
+    google.maps.event.addListener(handler.getMap(), 'center_changed', function(){
+      centerMarker.getServiceObject().setPosition(this.getCenter());
+    });
+    if (busStopsCount == 1 && !polylinesJson) {
+      handler.getMap().setZoom(15);
+    }
+  });
+}
