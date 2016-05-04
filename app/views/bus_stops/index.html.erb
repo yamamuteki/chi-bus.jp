@@ -11,7 +11,7 @@
       <div class="list-window">
         <div class="list-group">
           <% @bus_stops.each_with_index do |bus_stop, index| %>
-            <a href="<%=bus_stop_path(bus_stop) %>" class="list-group-item">
+            <a href="<%=bus_stop_path(bus_stop) %>" class="list-group-item" data-bus-stop-link="<%= bus_stop.id %>">
               <div class="badge"><%= bus_stop.bus_routes.size %></div>
               <div class="list-number"><%= "#{index + 1}." %></div>
               <div class="list-content"><%= "#{bus_stop.name}" %></div>

@@ -5,6 +5,7 @@ module ApplicationHelper
       marker.lng bus_stop.longitude
       marker.title bus_stop.name
       marker.infowindow render partial: 'infowindow', locals: { bus_stop: bus_stop }
+      marker.json({ id: bus_stop.id })
     end
     if position then
       hash = hash + Gmaps4rails.build_markers([position]) do |bus_stop, marker|

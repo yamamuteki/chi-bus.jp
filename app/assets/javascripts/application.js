@@ -20,16 +20,21 @@
 //= require_tree .
 
 function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath) {
+  if (!document.body.meta) { document.body.meta = new Object(); }
   handler = Gmaps.build('Google');
   handler.buildMap({ provider: { scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
-    markers = handler.addMarkers(markersJson);
+    var markers = $.map(markersJson, function(busStop){
+      var marker = handler.addMarker(busStop);
+      marker.id = busStop.id;
+      return marker;
+    });
+    document.body.meta.markers = markers;
     if (polylinesJson) {
       var polylines = $.map(polylinesJson, function(busRoute){
         var polyline = handler.addPolylines(busRoute['tracks'], { strokeColor: '#00f', strokeOpacity: 0.5 });
         $.each(polyline, function(){ this.id = busRoute['id'] });
         return polyline;
       });
-      if (!document.body.meta) { document.body.meta = new Object(); }
       document.body.meta.polylines = polylines;
       handler.bounds.extendWith(polylines);
     } else {

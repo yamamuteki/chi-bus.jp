@@ -64,3 +64,15 @@ $ ->
       if polyline.id + '' == id
         polyline.getServiceObject().setOptions({ strokeColor: '#00f', strokeOpacity: 0.5, zIndex: 0 })
 
+$ ->
+  $("a[data-bus-stop-link]").on 'mouseenter', (e) ->
+    id = $(this).attr('data-bus-stop-link')
+    for marker in document.body.meta.markers
+      if marker.id + '' == id
+        marker.getServiceObject().setAnimation(google.maps.Animation.BOUNCE)
+  $("a[data-bus-stop-link]").on 'mouseleave click', (e) ->
+    id = $(this).attr('data-bus-stop-link')
+    for marker in document.body.meta.markers
+      if marker.id + '' == id
+        marker.getServiceObject().setAnimation(null)
+
