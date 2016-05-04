@@ -24,7 +24,13 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
   handler.buildMap({ provider: { scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
     markers = handler.addMarkers(markersJson);
     if (polylinesJson) {
-      polylines = handler.addPolylines(polylinesJson, { strokeColor: '#00f', strokeOpacity: 0.5 });
+      var polylines = $.map(polylinesJson, function(busRoute){
+        var polyline = handler.addPolylines(busRoute['tracks'], { strokeColor: '#00f', strokeOpacity: 0.5 });
+        $.each(polyline, function(){ this.id = busRoute['id'] });
+        return polyline;
+      });
+      if (!document.body.meta) { document.body.meta = new Object(); }
+      document.body.meta.polylines = polylines;
       handler.bounds.extendWith(polylines);
     } else {
       handler.bounds.extendWith(markers);

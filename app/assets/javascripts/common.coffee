@@ -51,3 +51,16 @@ $ ->
     else
       $(".list-window").height($(window).height() - $(".list-window").offset().top - 10)
       $(".list-window").css("overflow", "scroll")
+
+$ ->
+  $("a[data-bus-route-link]").on 'mouseenter', (e) ->
+    id = $(this).attr('data-bus-route-link')
+    for polyline in document.body.meta.polylines
+      if polyline.id + '' == id
+        polyline.getServiceObject().setOptions({ strokeColor: '#c00', strokeOpacity: 1.0, zIndex: 1 })
+  $("a[data-bus-route-link]").on 'mouseleave click', (e) ->
+    id = $(this).attr('data-bus-route-link')
+    for polyline in document.body.meta.polylines
+      if polyline.id + '' == id
+        polyline.getServiceObject().setOptions({ strokeColor: '#00f', strokeOpacity: 0.5, zIndex: 0 })
+

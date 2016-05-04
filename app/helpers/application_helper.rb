@@ -17,12 +17,15 @@ module ApplicationHelper
   end
 
   def build_routes_hash(bus_routes)
-    tracks = bus_routes.flat_map do |bus_route|
-      bus_route.bus_route_tracks.map do |track|
-        track.coordinates.map do |coordinate|
-          { lat: coordinate[0], lng: coordinate[1] }
+    tracks = bus_routes.map do |bus_route|
+      {
+        id: bus_route.id,
+        tracks: bus_route.bus_route_tracks.map do |track|
+          track.coordinates.map do |coordinate|
+            { lat: coordinate[0], lng: coordinate[1] }
+          end
         end
-      end
+      }
     end
   end
 
