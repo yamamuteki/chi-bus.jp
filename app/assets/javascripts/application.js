@@ -24,9 +24,15 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
   handler = Gmaps.build('Google');
   handler.buildMap({ provider: { scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
     var markers = $.map(markersJson, function(busStop){
-      var marker = handler.addMarker(busStop);
+      var marker = handler.addMarker(busStop, { visible: false });
       marker.id = busStop.id;
       return marker;
+    });
+    $.each(markers, function(index){
+      var marker = this.getServiceObject();
+      window.setTimeout(function(){
+        marker.setOptions({ animation: google.maps.Animation.DROP, visible: true });
+      }, index * 100);
     });
     document.body.meta.markers = markers;
     if (polylinesJson) {
