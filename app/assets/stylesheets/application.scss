@@ -46,13 +46,12 @@ h1, .h1, h2, .h2, h3, .h3 {
 
 .home-parent {
   height: calc(100vh - 68px);
-  display: table;
-  table-layout: fixed;
+  display: flex;
 }
 
 .home-child {
-  display: table-cell;
-  vertical-align: middle;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .sub-title {

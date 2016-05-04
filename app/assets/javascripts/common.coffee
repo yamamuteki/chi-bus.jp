@@ -47,10 +47,10 @@ $ ->
     $(".map").height($(window).height() - 120)
     if $(window).width() < 768
       $(".list-window").height("auto")
-      $(".list-window").css("overflow", "visible")
+      $(".list-window").css("overflow-y", "visible")
     else
       $(".list-window").height($(window).height() - $(".list-window").offset().top - 10)
-      $(".list-window").css("overflow", "scroll")
+      $(".list-window").css("overflow-y", "scroll")
 
 $ ->
   $("a[data-bus-route-link]").on 'mouseenter', (e) ->
