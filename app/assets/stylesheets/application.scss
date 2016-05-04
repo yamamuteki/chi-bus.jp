@@ -34,6 +34,10 @@ h1, .h1, h2, .h2, h3, .h3 {
   margin-bottom: 10px;
 }
 
+.menu-bar-title {
+  font-size: 26px;
+}
+
 .round-image {
   border-radius: 5px;
 }
@@ -45,7 +49,7 @@ h1, .h1, h2, .h2, h3, .h3 {
 }
 
 .home-parent {
-  height: calc(100vh - 68px);
+  height: calc(100vh - 64px);
   display: flex;
 }
 
