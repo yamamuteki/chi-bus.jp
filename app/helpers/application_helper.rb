@@ -1,20 +1,21 @@
 module ApplicationHelper
   def build_markers(bus_stops, position = nil)
-    hash = Gmaps4rails.build_markers(bus_stops) do |bus_stop, marker|
+    markers = []
+    if position then
+      markers += Gmaps4rails.build_markers([position]) do |bus_stop, marker|
+        marker.lat position.split(',')[0]
+        marker.lng position.split(',')[1]
+        marker.picture({ url: image_path('bluedot.png'), width: '20', height: '20' })
+      end
+    end
+    markers += Gmaps4rails.build_markers(bus_stops) do |bus_stop, marker|
       marker.lat bus_stop.latitude
       marker.lng bus_stop.longitude
       marker.title bus_stop.name
       marker.infowindow render partial: 'infowindow', locals: { bus_stop: bus_stop }
       marker.json({ id: bus_stop.id })
     end
-    if position then
-      hash = hash + Gmaps4rails.build_markers([position]) do |bus_stop, marker|
-        marker.lat position.split(',')[0]
-        marker.lng position.split(',')[1]
-        marker.picture({ url: image_path('bluedot.png'), width: '20', height: '20' })
-      end
-    end
-    hash
+    markers
   end
 
   def build_routes_hash(bus_routes)
