@@ -15,8 +15,6 @@
 //= require bootstrap-sprockets
 //= require underscore-min
 //= require gmaps/google
-//= require jquery.turbolinks
-//= require turbolinks
 //= require_tree .
 
 function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath) {

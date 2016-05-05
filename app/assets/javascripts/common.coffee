@@ -32,14 +32,6 @@ $ ->
     handler.getMap().setOptions({draggable: !value})
   $("input[data-toggle-draggable]").prop("checked", from_smartphone()).change()
 
-$(document).on 'page:fetch', ->
-  $(".turbolinks-loading").show()
-  return
-
-$(document).on 'page:change', ->
-  $(".turbolinks-loading").fadeOut 100
-  return
-
 $ ->
   listResize()
   $(window).resize ->
