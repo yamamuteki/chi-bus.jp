@@ -53,4 +53,6 @@ gem 'google-analytics-rails'
 gem 'gmaps4rails'
 gem 'quiet_assets', group: :development
 gem 'rack-user_agent'
+gem 'google_places'
+gem 'dotenv-rails'
 

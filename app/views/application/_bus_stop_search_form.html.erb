@@ -10,7 +10,7 @@
         </a>
       </span>
     <% end %>
-    <%= text_field_tag :q, params[:q], placeholder: 'バス停名を省略すると周辺を検索します', class: 'form-control' %>
+    <%= text_field_tag :q, params[:q], placeholder: '省略すると周辺を検索します', class: 'form-control' %>
     <span class="input-group-btn">
       <%= button_tag title: '検索', name: nil, class: 'btn btn-primary', data: { geolocation: '' } do %>
         <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
