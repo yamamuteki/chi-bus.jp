@@ -1,12 +1,21 @@
 ## Change Log
 
+### v3.0.0 (2016/05/05 14:38 +00:00)
+- [3f12ed6](https://github.com/yamamuteki/chi-bus.jp/commit/3f12ed601bbe06c0548087944ff04e31b277e807) Add place address in infowindows (@yamamuteki)
+- [a2e00fe](https://github.com/yamamuteki/chi-bus.jp/commit/a2e00fe1aa3408f37f8ca93b9e53693b5b15fe02) Add text search using google places gem (@yamamuteki)
+- [7c110f9](https://github.com/yamamuteki/chi-bus.jp/commit/7c110f9172cbc227feb48873f396fe236517c107) Change order of current position marker (@yamamuteki)
+- [2e02005](https://github.com/yamamuteki/chi-bus.jp/commit/2e020055dcafe4f9ebac8a23f6861152300f73a8) Disable turbolinks (@yamamuteki)
+- [38442b0](https://github.com/yamamuteki/chi-bus.jp/commit/38442b05d3b49fca38f58ef966a3c2b1930c59d3) Improve list layout (@yamamuteki)
+- [f098f25](https://github.com/yamamuteki/chi-bus.jp/commit/f098f25b140ab9e24e20d067afb66c2045df8530) Fix JavaScript error (@yamamuteki)
+- [c1311b4](https://github.com/yamamuteki/chi-bus.jp/commit/c1311b44d6dc494f64a79c59827a32ffce4cd440) Update README.md (@yamamuteki)
+
 ### v2.4.0 (2016/05/04 12:59 +00:00)
 - [cde502c](https://github.com/yamamuteki/chi-bus.jp/commit/cde502cdfbd9c6003092d594f458c97dac0cf916) Add drop animation to bus stops (@yamamuteki)
 - [4362dd9](https://github.com/yamamuteki/chi-bus.jp/commit/4362dd9e3b091e9ecca26c38c55e9949eff388ac) Fix nil reference (@yamamuteki)
 - [b296dd2](https://github.com/yamamuteki/chi-bus.jp/commit/b296dd2c61324496d27a911c876f07fdcaff36d5) Improve UX (@yamamuteki)
+- [c389474](https://github.com/yamamuteki/chi-bus.jp/commit/c389474b348ff79650ebc00ef51038f1341a05a1) Support Microsoft Edge (@yamamuteki)
 - [476dc82](https://github.com/yamamuteki/chi-bus.jp/commit/476dc82543a556b5f4ab8027d81d266341b4a089) Change current position marker to small (@yamamuteki)
 - [1c6fcb1](https://github.com/yamamuteki/chi-bus.jp/commit/1c6fcb1521b04753f928424aa841a31c5545c142) Fix add event handler many times (@yamamuteki)
-- [c389474](https://github.com/yamamuteki/chi-bus.jp/commit/c389474b348ff79650ebc00ef51038f1341a05a1) Support Microsoft Edge (@yamamuteki)
 - [6e2f91a](https://github.com/yamamuteki/chi-bus.jp/commit/6e2f91ac6c809e3459f6960abc14b2e8112f9baf) Update README.md (@yamamuteki)
 
 ### v2.3.0 (2016/05/04 06:27 +00:00)
@@ -75,8 +84,8 @@
 
 ### v1.4.0 (2016/04/28 15:55 +00:00)
 - [068747d](https://github.com/yamamuteki/chi-bus.jp/commit/068747d1fd4a0c8e9c4896fa7ff11eb22a6a80f7) Enable to draggable map from not smartphone (@yamamuteki)
-- [270a6ce](https://github.com/yamamuteki/chi-bus.jp/commit/270a6cecae4bdfa781d01e2b178b7c80481286c2) Disable fragment cache in development environment (@yamamuteki)
 - [b17c8d4](https://github.com/yamamuteki/chi-bus.jp/commit/b17c8d4c60d8cf8e71d55dd62705e00896b2388a) Show current position when to use HTML5 geolocation API (@yamamuteki)
+- [270a6ce](https://github.com/yamamuteki/chi-bus.jp/commit/270a6cecae4bdfa781d01e2b178b7c80481286c2) Disable fragment cache in development environment (@yamamuteki)
 - [eb70cf3](https://github.com/yamamuteki/chi-bus.jp/commit/eb70cf3b6b4da3b9b238101c921505e6efdb252d) Add quiet assets gem (@yamamuteki)
 - [7059655](https://github.com/yamamuteki/chi-bus.jp/commit/70596557de807cf192cb97d4fd601c2b17278698) Update README.md (@yamamuteki)
 
