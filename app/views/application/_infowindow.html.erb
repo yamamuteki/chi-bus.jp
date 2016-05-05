@@ -1,2 +1,7 @@
-<%= link_to bus_stop.name, bus_stop_or_place_path(bus_stop) %>
+<div>
+  <%= link_to bus_stop.name, bus_stop_or_place_path(bus_stop) %>
+</div>
+<div>
+  <%= bus_stop.formatted_address %>
+</div>
 
