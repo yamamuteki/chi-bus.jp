@@ -7,7 +7,7 @@ class BusStopsControllerTest < ActionController::TestCase
   end
 
   test "should get show" do
-    get :show
+    get :show, { id: bus_stops(:one) }
     assert_response :success
   end
 
