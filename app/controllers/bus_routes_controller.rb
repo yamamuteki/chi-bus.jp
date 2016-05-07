@@ -1,6 +1,5 @@
 class BusRoutesController < ApplicationController
   def show
-    # Don't use preload for keeping bus stop order (Use fragment cache)
-    @bus_route = BusRoute.find(params[:id])
+    @bus_route = BusRoute.includes(bus_stops: [:bus_route_bus_stops]).order('bus_route_bus_stops.bus_stop_number').find(params[:id])
   end
 end
