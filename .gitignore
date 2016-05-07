@@ -19,3 +19,4 @@
 # Ignore etc.
 .DS_Store
 .env
+/coverage

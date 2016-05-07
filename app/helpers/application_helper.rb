@@ -12,7 +12,7 @@ module ApplicationHelper
       marker.lat bus_stop.latitude
       marker.lng bus_stop.longitude
       marker.title bus_stop.name
-      marker.infowindow render partial: 'infowindow', locals: { bus_stop: bus_stop }
+      marker.infowindow render partial: 'application/infowindow', locals: { bus_stop: bus_stop }
       marker.json({ id: bus_stop.id })
     end
     markers

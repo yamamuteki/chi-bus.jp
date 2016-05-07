@@ -14,6 +14,6 @@ class BusRoute < ActiveRecord::Base
   }
 
   def bus_type_label
-    BUS_TYPE_LABELS[bus_type.to_sym]
+    BUS_TYPE_LABELS[bus_type.to_s.to_sym]
   end
 end
