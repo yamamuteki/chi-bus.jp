@@ -2,12 +2,12 @@
 
 one:
   gml_id: MyString
-  name: MyString
+  name: BusStop1
   latitude: 1.5
   longitude: 1.5
 
 two:
   gml_id: MyString
-  name: MyString
+  name: BusStop2
   latitude: 1.5
   longitude: 1.5

@@ -7,7 +7,7 @@ class BusStopsController < ApplicationController
         spots = Rails.cache.fetch(params[:q]) do
           # The maximum allowed radius is 50,000 meters in Google Places API Web Service
           # 千葉県庁@35.6049233,140.1208483
-          client.spots_by_query(params[:q], lat: 35.6049233, lng: 140.1208483, radius: 50_000, :language => 'ja')
+          client.spots_by_query(params[:q], lat: 35.6049233, lng: 140.1208483, radius: 50_000, language: 'ja')
         end
         @bus_stops = spots.map { |spot| Place.new(spot) }
       end
