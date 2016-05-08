@@ -36,6 +36,7 @@ GEM
       minitest (~> 5.1)
       thread_safe (~> 0.3, >= 0.3.4)
       tzinfo (~> 1.1)
+    ansi (1.5.0)
     arel (6.0.3)
     autoprefixer-rails (6.3.6)
       execjs
@@ -90,6 +91,11 @@ GEM
     mime-types-data (3.2016.0221)
     mini_portile2 (2.0.0)
     minitest (5.8.4)
+    minitest-reporters (1.1.9)
+      ansi
+      builder
+      minitest (>= 5.0)
+      ruby-progressbar
     multi_json (1.11.2)
     multi_xml (0.5.5)
     nokogiri (1.6.7.2)
@@ -185,6 +191,7 @@ DEPENDENCIES
   google_places
   jbuilder (~> 2.0)
   jquery-rails
+  minitest-reporters
   pg
   quiet_assets
   rack-user_agent

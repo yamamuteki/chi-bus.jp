@@ -31,19 +31,13 @@ class BusStopsControllerTest < ActionController::TestCase
   end
 
   test "should get index with place query and hits" do
-    spot = MiniTest::Mock.new
-    spot.expect :place_id, 'place_id'
-    spot.expect :name, 'name'
-    spot.expect :lat, 1.5
-    spot.expect :lng, 2.5
-    spot.expect :name, 'name'
-    spot.expect :lat, 1.5
-    spot.expect :lng, 2.5
-    spot.expect :lat, 1.5
-    spot.expect :lng, 2.5
-    spot.expect :place_id, 'place_id'
-    spot.expect :name, 'name'
-    spot.expect :formatted_address, 'formatted_address'
+    spot = nil
+    def spot.place_id; 'place_id' end
+    def spot.name; 'name' end
+    def spot.lat; 1.5 end
+    def spot.lng; 2.5 end
+    def spot.formatted_address; 'formatted_address' end
+    def spot.place_id; 'place_id' end
 
     instance_mock = MiniTest::Mock.new
     instance_mock.expect :spots_by_query, [spot], [String, Hash]
