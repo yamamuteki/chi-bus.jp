@@ -57,4 +57,5 @@ gem 'google_places'
 gem 'dotenv-rails'
 gem 'simplecov', require: false, group: :test
 gem 'minitest-reporters', require: false, group: :test
+gem "sitemap_generator"
 
