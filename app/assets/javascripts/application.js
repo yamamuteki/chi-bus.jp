@@ -24,6 +24,7 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
     var markers = $.map(markersJson, function(busStop){
       var marker = handler.addMarker(busStop, { visible: false });
       marker.id = busStop.id;
+      marker.panTo = function() {};
       return marker;
     });
     $.each(markers, function(index){
