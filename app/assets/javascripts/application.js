@@ -46,7 +46,7 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
       handler.bounds.extendWith(markers);
     }
     handler.fitMapToBounds();
-    centerMarker = handler.addMarker({
+    var centerMarker = handler.addMarker({
       "lat": handler.getMap().getCenter().lat(),
       "lng": handler.getMap().getCenter().lng(),
       "picture": {

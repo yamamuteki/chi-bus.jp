@@ -7,10 +7,10 @@
     </div>
   </div>
   <script type="text/javascript">
-markersJson = <%= raw build_markers(bus_stops, params[:position]).to_json %>;
-polylinesJson = <%= raw bus_routes ? build_routes_hash(bus_routes).to_json : false %>;
-busStopsCount = <%= bus_stops.size %>;
-centerMakerImagePath = <%= raw "'#{image_path('red_cross.png')}'" %>;
+var markersJson = <%= raw build_markers(bus_stops, params[:position]).to_json %>;
+var polylinesJson = <%= raw bus_routes ? build_routes_hash(bus_routes).to_json : false %>;
+var busStopsCount = <%= bus_stops.size %>;
+var centerMakerImagePath = <%= raw "'#{image_path('red_cross.png')}'" %>;
 drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath);
   </script>
 <% end %>
