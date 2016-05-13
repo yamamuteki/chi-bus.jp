@@ -19,7 +19,7 @@
     <%= csrf_meta_tags %>
     <%= analytics_init if GoogleAnalytics.valid_tracker? %>
     <script src="//maps.google.com/maps/api/js?v=3.22&key=AIzaSyDgBqFhJHIOXtF32jGmkFeNzbt6EMYGDKE&libraries=geometry&language=&hl=&region="></script>
-    <script src="//rawgit.com/mahnunchik/markerclustererplus/master/dist/markerclusterer.min.js"></script>
+    <script src="//cdn.rawgit.com/mahnunchik/markerclustererplus/master/dist/markerclusterer.min.js"></script>
     <script type="text/javascript">
 function from_smartphone(){
   return <%= (request.from_smartphone?).to_s %>;
