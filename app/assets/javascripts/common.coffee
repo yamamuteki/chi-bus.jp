@@ -13,7 +13,7 @@ $ ->
 success = (position) ->
   lat = position.coords.latitude
   long = position.coords.longitude
-  window.location.href = '/bus_stops/?position=' + lat + ',' + long
+  window.location.href = '/bus_stops?position=' + lat + ',' + long
 
 error = (err) ->
   console.warn('ERROR(' + err.code + '): ' + err.message)
@@ -23,7 +23,7 @@ $ ->
     center = handler.getMap().getCenter()
     lat = center.lat()
     long = center.lng()
-    window.location.href = '/bus_stops/?position=' + lat + ',' + long
+    window.location.href = '/bus_stops?position=' + lat + ',' + long
     false
 
 $ ->
