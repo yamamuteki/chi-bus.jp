@@ -4,7 +4,9 @@ class BusStop < ActiveRecord::Base
   reverse_geocoded_by :latitude, :longitude
   def address
     # お試し実装。
-    Geocoder.address("#{self.latitude},#{self.longitude}").to_s
+    Rails.cache.fetch("bus_stop_addresses/#{self.id}") do
+      Geocoder.address("#{self.latitude},#{self.longitude}").to_s
+    end
   end
   def formatted_address
     # DBにキャッシュしたら返す。
