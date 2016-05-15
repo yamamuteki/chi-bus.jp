@@ -136,6 +136,23 @@ GEM
     rake (11.1.2)
     rdoc (4.2.2)
       json (~> 1.4)
+    redis (3.3.0)
+    redis-actionpack (4.0.1)
+      actionpack (~> 4)
+      redis-rack (~> 1.5.0)
+      redis-store (~> 1.1.0)
+    redis-activesupport (4.1.5)
+      activesupport (>= 3, < 5)
+      redis-store (~> 1.1.0)
+    redis-rack (1.5.0)
+      rack (~> 1.5)
+      redis-store (~> 1.1.0)
+    redis-rails (4.0.0)
+      redis-actionpack (~> 4)
+      redis-activesupport (~> 4)
+      redis-store (~> 1.1.0)
+    redis-store (1.1.7)
+      redis (>= 2.2)
     ruby-progressbar (1.7.5)
     sass (3.4.22)
     sass-rails (5.0.4)
@@ -198,6 +215,7 @@ DEPENDENCIES
   quiet_assets
   rack-user_agent
   rails (= 4.2.6)
+  redis-rails
   ruby-progressbar
   sass-rails (~> 5.0)
   sdoc (~> 0.4.0)
