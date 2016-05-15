@@ -59,4 +59,5 @@ gem 'simplecov', require: false, group: :test
 gem 'minitest-reporters', require: false, group: :test
 gem "sitemap_generator"
 gem "redis-rails"
+gem 'cache_clear_rails'
 
