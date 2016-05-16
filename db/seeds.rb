@@ -105,8 +105,10 @@ ActiveRecord::Base.transaction do
   load_bus_routes 'db/N07-11_12.xml'
   load_bus_routes 'db/N07-11_13.xml'
   load_bus_routes 'db/N07-11_14.xml'
+  load_bus_routes 'db/N07-11_11.xml'
   load_bus_stops 'db/P11-10_12-jgd-g.xml'
   load_bus_stops 'db/P11-10_13-jgd-g.xml'
   load_bus_stops 'db/P11-10_14-jgd-g.xml'
+  load_bus_stops 'db/P11-10_11-jgd-g.xml'
   order_bus_stops
 end
