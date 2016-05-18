@@ -20,6 +20,7 @@ class PlaceTest < ActiveSupport::TestCase
     assert_equal 1.5, place.latitude
     assert_equal 2.5, place.longitude
     assert_equal 'formatted_address', place.formatted_address
+    assert_equal nil, place.city
     assert spot === place.spot
     assert spot.verify
   end

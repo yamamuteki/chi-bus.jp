@@ -18,7 +18,7 @@
             <a href="<%= bus_stop_path(bus_stop) %>" class="list-group-item" data-bus-stop-link="<%= bus_stop.id %>">
               <div class="badge"><%= bus_stop.bus_route_bus_stops.size %></div>
               <div class="list-number"><%= "#{index + 1}." %></div>
-              <div class="list-content"><%= "#{bus_stop.name}" %></div>
+              <div class="list-content"><%= "#{bus_stop.name}" %><%= "（#{bus_stop.city}）" if bus_stop.city %></div>
             </a>
           <% end %>
         </div>
