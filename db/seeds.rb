@@ -44,7 +44,7 @@ def load_bus_routes xml_path
   end
 end
 
-def load_bus_stops xml_path
+def load_bus_stops xml_path, prefecture
   doc = Nokogiri::XML(open(xml_path))
   doc.remove_namespaces!
 
@@ -59,7 +59,7 @@ def load_bus_stops xml_path
     name = node.at('busStopName').text
     href = node.at('position')['href'].remove '#'
     pos = pos_hash[href]
-    bus_stop = BusStop.create(gml_id: gml_id, name: name, latitude: pos.split[0], longitude: pos.split[1])
+    bus_stop = BusStop.create(gml_id: gml_id, name: name, latitude: pos.split[0], longitude: pos.split[1], prefecture: prefecture)
     node.css('BusRouteInformation').each do |info_node|
       bus_type = info_node.at('busType').text.to_i
       operation_company = info_node.at('busOperationCompany').text
@@ -106,9 +106,9 @@ ActiveRecord::Base.transaction do
   load_bus_routes 'db/N07-11_13.xml'
   load_bus_routes 'db/N07-11_14.xml'
   load_bus_routes 'db/N07-11_11.xml'
-  load_bus_stops 'db/P11-10_12-jgd-g.xml'
-  load_bus_stops 'db/P11-10_13-jgd-g.xml'
-  load_bus_stops 'db/P11-10_14-jgd-g.xml'
-  load_bus_stops 'db/P11-10_11-jgd-g.xml'
+  load_bus_stops 'db/P11-10_12-jgd-g.xml', '千葉県'
+  load_bus_stops 'db/P11-10_13-jgd-g.xml', '東京都'
+  load_bus_stops 'db/P11-10_14-jgd-g.xml', '神奈川県'
+  load_bus_stops 'db/P11-10_11-jgd-g.xml', '埼玉県'
   order_bus_stops
 end

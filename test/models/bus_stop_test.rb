@@ -14,24 +14,11 @@ class BusStopTest < ActiveSupport::TestCase
     assert_respond_to bus_stop, :bus_route_bus_stops
     assert_respond_to bus_stop, :bus_routes
     assert_respond_to bus_stop, :address
+    assert_respond_to bus_stop, :formatted_address
   end
 
-  test "should address return " do
-    Geocoder::Lookup::Test.add_stub(
-      "40.7143528,-74.0059731", [
-        {
-          'latitude'     => 40.7143528,
-          'longitude'    => -74.0059731,
-          'address'      => 'New York, NY, USA',
-          'state'        => 'New York',
-          'state_code'   => 'NY',
-          'country'      => 'United States',
-          'country_code' => 'US'
-        }
-      ]
-    )
-
-    bus_stop = BusStop.new(latitude: 40.7143528, longitude: -74.0059731)
+  test "should address return address" do
+    bus_stop = BusStop.new(formatted_address: 'New York, NY, USA')
     assert_equal 'New York, NY, USA', bus_stop.address
   end
 
