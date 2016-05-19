@@ -1,5 +1,16 @@
 ## Change Log
 
+### v3.3.0 (2016/05/19 17:29 +00:00)
+- [4a7cc77](https://github.com/yamamuteki/chi-bus.jp/commit/4a7cc77ae26a22268577eff4bc0c0da3edbcbe81) Add geocording data (@yamamuteki)
+- [a6b759c](https://github.com/yamamuteki/chi-bus.jp/commit/a6b759c37bb5112a804a3a793c3bc29bc800d8a2) Bundle update (@yamamuteki)
+- [9c85935](https://github.com/yamamuteki/chi-bus.jp/commit/9c859356108a4548038900a66c888762b45980be) Use Puma (@yamamuteki)
+- [8cec615](https://github.com/yamamuteki/chi-bus.jp/commit/8cec615b763e6614ee1ab3c2e513b9ed58f98f3f) Change mascot images (@yamamuteki)
+- [bc0dbb2](https://github.com/yamamuteki/chi-bus.jp/commit/bc0dbb2d0dfbe82c963bdafa4feb272cdddc36fa) Add city in bus stops list (@yamamuteki)
+- [a764708](https://github.com/yamamuteki/chi-bus.jp/commit/a76470884cdf93e2c49e7a5f45ae5a7d8ba4c91a) Add bus stop stats in about page (@yamamuteki)
+- [b3891c6](https://github.com/yamamuteki/chi-bus.jp/commit/b3891c622dba667a9e3c004a13d3ef37d0c433a9) Change geocoding to cache in database (@yamamuteki)
+- [8178342](https://github.com/yamamuteki/chi-bus.jp/commit/8178342ce5dc56c1435a1cf724b232cdcd541cef) Update home message (@yamamuteki)
+- [1547c02](https://github.com/yamamuteki/chi-bus.jp/commit/1547c02b59a6de0fb1150ae6f8389d8e172306a0) Update README.md (@yamamuteki)
+
 ### v3.2.0 (2016/05/16 14:12 +00:00)
 - [cbf5cb5](https://github.com/yamamuteki/chi-bus.jp/commit/cbf5cb57c9af31c37e7a34aa272c01d454700660) Update sitemap xml (@yamamuteki)
 - [c9c7623](https://github.com/yamamuteki/chi-bus.jp/commit/c9c762309343d534b559a63237541fc64a683e78) Add bus stops and routes in Saitama (@yamamuteki)
@@ -30,10 +41,10 @@
 - [9d9547b](https://github.com/yamamuteki/chi-bus.jp/commit/9d9547befd5e84c0d8f0f9c759e83d5f8936aa5a) Update about page (@yamamuteki)
 
 ### v3.0.0 (2016/05/06 00:25 +00:00)
-- [5b83ea5](https://github.com/yamamuteki/chi-bus.jp/commit/5b83ea50f444606e30063f029cc9b642812d7797) Change order of current position marker (@yamamuteki)
 - [cda3901](https://github.com/yamamuteki/chi-bus.jp/commit/cda3901c98390c684b7978db1aece374b442d413) Update README.md (@yamamuteki)
 - [088f634](https://github.com/yamamuteki/chi-bus.jp/commit/088f634edaa70ac929454b21f88df0b822050031) Add place address in infowindows (@yamamuteki)
 - [dc196eb](https://github.com/yamamuteki/chi-bus.jp/commit/dc196eb006e9204e7262a5f6d0278d8fa84d2fb6) Add text search using google places gem (@yamamuteki)
+- [5b83ea5](https://github.com/yamamuteki/chi-bus.jp/commit/5b83ea50f444606e30063f029cc9b642812d7797) Change order of current position marker (@yamamuteki)
 - [2e02005](https://github.com/yamamuteki/chi-bus.jp/commit/2e020055dcafe4f9ebac8a23f6861152300f73a8) Disable turbolinks (@yamamuteki)
 - [38442b0](https://github.com/yamamuteki/chi-bus.jp/commit/38442b05d3b49fca38f58ef966a3c2b1930c59d3) Improve list layout (@yamamuteki)
 - [f098f25](https://github.com/yamamuteki/chi-bus.jp/commit/f098f25b140ab9e24e20d067afb66c2045df8530) Fix JavaScript error (@yamamuteki)
@@ -113,9 +124,9 @@
 - [b280bf3](https://github.com/yamamuteki/chi-bus.jp/commit/b280bf39f60b67759d1f081e42c1d64ec4623332) Update README.md (@yamamuteki)
 
 ### v1.4.0 (2016/04/28 15:55 +00:00)
-- [b17c8d4](https://github.com/yamamuteki/chi-bus.jp/commit/b17c8d4c60d8cf8e71d55dd62705e00896b2388a) Show current position when to use HTML5 geolocation API (@yamamuteki)
 - [270a6ce](https://github.com/yamamuteki/chi-bus.jp/commit/270a6cecae4bdfa781d01e2b178b7c80481286c2) Disable fragment cache in development environment (@yamamuteki)
 - [068747d](https://github.com/yamamuteki/chi-bus.jp/commit/068747d1fd4a0c8e9c4896fa7ff11eb22a6a80f7) Enable to draggable map from not smartphone (@yamamuteki)
+- [b17c8d4](https://github.com/yamamuteki/chi-bus.jp/commit/b17c8d4c60d8cf8e71d55dd62705e00896b2388a) Show current position when to use HTML5 geolocation API (@yamamuteki)
 - [eb70cf3](https://github.com/yamamuteki/chi-bus.jp/commit/eb70cf3b6b4da3b9b238101c921505e6efdb252d) Add quiet assets gem (@yamamuteki)
 - [7059655](https://github.com/yamamuteki/chi-bus.jp/commit/70596557de807cf192cb97d4fd601c2b17278698) Update README.md (@yamamuteki)
 
