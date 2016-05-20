@@ -61,4 +61,5 @@ gem "sitemap_generator"
 gem "redis-rails"
 gem 'cache_clear_rails'
 gem 'puma'
+gem 'newrelic_rpm'
 
