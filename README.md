@@ -1,5 +1,11 @@
 ## Change Log
 
+### v3.4.0 (2016/05/21 14:00 +00:00)
+- [9ed151b](https://github.com/yamamuteki/chi-bus.jp/commit/9ed151bdd3878d3d0dd9d4edc843dbadd94e3927) Add bus stops search by roman, hiragana or katakana (@yamamuteki)
+- [7e4105a](https://github.com/yamamuteki/chi-bus.jp/commit/7e4105a132e61e2304872de435e72cab612f7a4b) Improve geocording data dump and restore task (@yamamuteki)
+- [19f5dcc](https://github.com/yamamuteki/chi-bus.jp/commit/19f5dcc4577a391caa002159859e0be0f34a3bd8) Use New Relic (@yamamuteki)
+- [11e0369](https://github.com/yamamuteki/chi-bus.jp/commit/11e0369dfe72f62680b6d2463375698266466665) Update README.md (@yamamuteki)
+
 ### v3.3.0 (2016/05/19 17:29 +00:00)
 - [4a7cc77](https://github.com/yamamuteki/chi-bus.jp/commit/4a7cc77ae26a22268577eff4bc0c0da3edbcbe81) Add geocording data (@yamamuteki)
 - [a6b759c](https://github.com/yamamuteki/chi-bus.jp/commit/a6b759c37bb5112a804a3a793c3bc29bc800d8a2) Bundle update (@yamamuteki)
