@@ -1,7 +1,7 @@
 class BusStopsController < ApplicationController
   def index
     if params[:q] then
-      @bus_stops = BusStop.preload(:bus_routes).where("name like '%#{params[:q]}%'").order('name, latitude DESC').limit(100)
+      @bus_stops = BusStop.preload(:bus_routes).where("keyword like '%#{params[:q]}%'").order('name, latitude DESC').limit(100)
       if @bus_stops.empty?
         client = GooglePlaces::Client.new(Rails.application.secrets.google_api_key)
         spots = Rails.cache.fetch(params[:q]) do

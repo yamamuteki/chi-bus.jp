@@ -111,4 +111,6 @@ ActiveRecord::Base.transaction do
   load_bus_stops 'db/P11-10_14-jgd-g.xml', '神奈川県'
   load_bus_stops 'db/P11-10_11-jgd-g.xml', '埼玉県'
   order_bus_stops
+  Rake::Task['geocode:restore'].invoke
+  Rake::Task['keyword:restore'].invoke
 end
