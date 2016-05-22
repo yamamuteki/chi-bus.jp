@@ -3,7 +3,7 @@ namespace :geocode do
   task dump: :environment do
     progress = ProgressBar.create(title: "Dump", total: BusStop.count, format: '%t: %J%% |%B|')
     File.write('db/geocording_data.json', JSON.pretty_generate(
-      BusStop.all.map do |bus_stop|
+      BusStop.find_each.map do |bus_stop|
         progress.increment
         {
           bus_stop_id: bus_stop.id,

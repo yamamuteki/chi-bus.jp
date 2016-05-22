@@ -77,11 +77,12 @@ def order_bus_stops
   order_progress = ProgressBar.create(title: "Ordering", total: BusRoute.count, format: '%t: %J%% |%B|')
   BusRoute.find_each do |bus_route|
     index = 0
+    bus_route_bus_stops = bus_route.bus_route_bus_stops
     bus_route.bus_route_tracks.sort_by{|t| t.coordinates[0][1] }.each do |track|
       track.coordinates.each do |coordinate|
         latitude = coordinate[0]
         longitude = coordinate[1]
-        bus_route.bus_route_bus_stops.each do |bus_route_bus_stop|
+        bus_route_bus_stops.each do |bus_route_bus_stop|
           next if bus_route_bus_stop.bus_stop_number
           bus_stop = bus_route_bus_stop.bus_stop
           distance = (bus_stop.latitude - latitude) ** 2 + (bus_stop.longitude - longitude) ** 2

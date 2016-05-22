@@ -3,7 +3,7 @@ namespace :keyword do
   task generate: :environment do
     progress = ProgressBar.create(title: "Generate", total: BusStop.count, format: '%t: %J%% |%B|')
     ActiveRecord::Base.transaction do
-      BusStop.all.each do |bus_stop|
+      BusStop.find_each.each do |bus_stop|
         keyword = [
           bus_stop.name,
           Kakasi.kakasi('-Ja -Ha -Ka -ka -Ea', bus_stop.name).delete('^'),
@@ -20,7 +20,7 @@ namespace :keyword do
   task dump: :environment do
     progress = ProgressBar.create(title: "Dump", total: BusStop.count, format: '%t: %J%% |%B|')
     File.write('db/keywords.json', JSON.pretty_generate(
-      BusStop.all.map do |bus_stop|
+      BusStop.find_each.map do |bus_stop|
         progress.increment
         {
           bus_stop_id: bus_stop.id,
