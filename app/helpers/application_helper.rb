@@ -23,9 +23,10 @@ module ApplicationHelper
       {
         id: bus_route.id,
         tracks: bus_route.bus_route_tracks.map do |track|
-          track.coordinates.map do |coordinate|
+          track.coordinates.map.with_index do |coordinate, index|
+            next if index != 0 && index != track.coordinates.length - 1 && index % bus_routes.length != 0
             { lat: coordinate[0], lng: coordinate[1] }
-          end
+          end.compact
         end
       }
     end
