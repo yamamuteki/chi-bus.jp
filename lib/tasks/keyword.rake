@@ -6,14 +6,18 @@ namespace :keyword do
       BusStop.find_each.each do |bus_stop|
         keyword = [
           bus_stop.name,
-          Kakasi.kakasi('-Ja -Ha -Ka -ka -Ea', bus_stop.name).delete('^'),
-          Kakasi.kakasi('-JH -aH -KH -kH -EH', bus_stop.name),
-          Kakasi.kakasi('-JK -aK -HK -kK -EK', bus_stop.name)
+          kakasi_parse(Kakasi.kakasi('-Ja -Ha -Ka -ka -Ea -p', bus_stop.name).delete('^')).join(' '),
+          kakasi_parse(Kakasi.kakasi('-JH -aH -KH -kH -EH -p', bus_stop.name)).join(' '),
+          kakasi_parse(Kakasi.kakasi('-JK -aK -HK -kK -EK -p', bus_stop.name)).join(' ')
         ].join(' ')
         bus_stop.update(keyword: keyword)
         progress.increment
       end
     end
+  end
+
+  def kakasi_parse(kakasi_result)
+    kakasi_result.scan(/[^{}]+/).map{ |t| t.split('|') }.reduce{ |a,b| a.product(b) }.map{ |c| c.is_a?(Array) ? c.join : c }
   end
 
   desc 'Dump keywords'

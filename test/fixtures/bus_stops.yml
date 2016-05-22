@@ -5,9 +5,11 @@ one:
   name: BusStop1
   latitude: 1.5
   longitude: 1.5
+  keyword: BusStop1
 
 two:
   gml_id: MyString
   name: BusStop2
   latitude: 1.5
   longitude: 1.5
+  keyword: BusStop2
