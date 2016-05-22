@@ -62,5 +62,5 @@ gem "redis-rails"
 gem 'cache_clear_rails'
 gem 'puma'
 gem 'newrelic_rpm'
-gem 'kakasi', groups: [:development, :test]
+gem 'kakasi_parser', groups: [:development, :test]
 

@@ -85,6 +85,8 @@ GEM
       thor (>= 0.14, < 2.0)
     json (1.8.3)
     kakasi (1.0.2)
+    kakasi_parser (0.1.0)
+      kakasi (>= 1.0)
     loofah (2.0.3)
       nokogiri (>= 1.5.9)
     mail (2.6.4)
@@ -216,7 +218,7 @@ DEPENDENCIES
   google_places
   jbuilder (~> 2.0)
   jquery-rails
-  kakasi
+  kakasi_parser
   minitest-reporters
   newrelic_rpm
   pg
