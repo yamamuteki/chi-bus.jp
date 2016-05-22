@@ -18,7 +18,7 @@ module ApplicationHelper
     markers
   end
 
-  def build_routes_hash(bus_routes)
+  def build_routes(bus_routes)
     tracks = bus_routes.map do |bus_route|
       {
         id: bus_route.id,

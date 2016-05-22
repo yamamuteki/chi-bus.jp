@@ -8,7 +8,7 @@
   </div>
   <script type="text/javascript">
 var markersJson = <%= raw build_markers(bus_stops, params[:position]).to_json %>;
-var polylinesJson = <%= raw bus_routes ? build_routes_hash(bus_routes).to_json : false %>;
+var polylinesJson = <%= raw bus_routes ? build_routes(bus_routes).to_json : false %>;
 var busStopsCount = <%= bus_stops.size %>;
 var centerMakerImagePath = <%= raw "'#{image_path('red_cross.png')}'" %>;
 drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath);

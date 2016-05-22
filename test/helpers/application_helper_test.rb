@@ -45,19 +45,28 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal 2, results.length
   end
 
-  test "shuld build_routes_hash return empty" do
-    results = build_routes_hash([])
+  test "shuld build_routes return empty" do
+    results = build_routes([])
     assert_equal [], results
   end
 
-  test "shuld build_routes_hash return bus route hash" do
+  test "shuld build_routes return bus route hash" do
     bus_routes = [
-      BusRoute.new(id: 1) { |bus_route| bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[1.5, 2.5]]) },
-      BusRoute.new(id: 2) { |bus_route| bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[3.5, 4.5]]) }
+      BusRoute.new(id: 1) do |bus_route|
+        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[1.5, 2.5]])
+        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[3.5, 4.5]])
+      end,
+      BusRoute.new(id: 2) do |bus_route|
+        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[5.5, 6.5]])
+        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[7.5, 8.5]])
+      end
     ]
 
-    results = build_routes_hash(bus_routes)
-    assert_equal [{ id: 1, tracks: [[{ lat: 1.5, lng: 2.5 }]]}, { id: 2, tracks: [[{ lat: 3.5, lng: 4.5 }]] }], results
+    results = build_routes(bus_routes)
+    assert_equal [
+      { id: 1, tracks: [[{ lat: 1.5, lng: 2.5 }], [{ lat: 3.5, lng: 4.5 }]] },
+      { id: 2, tracks: [[{ lat: 5.5, lng: 6.5 }], [{ lat: 7.5, lng: 8.5 }]] }
+    ], results
   end
 
   test "should gravatar_for return html" do
