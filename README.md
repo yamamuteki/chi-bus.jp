@@ -1,5 +1,14 @@
 ## Change Log
 
+### v3.5.0 (2016/05/22 15:59 +00:00)
+- [ee6f017](https://github.com/yamamuteki/chi-bus.jp/commit/ee6f01717cae70235345c39571362ee483be161b) Implement auto coordinates reduction for bus route tracks (@yamamuteki)
+- [212ad67](https://github.com/yamamuteki/chi-bus.jp/commit/212ad67c97350e64138871b78b5864bb6c23dd9d) Add .travis.yml (@yamamuteki)
+- [5f02085](https://github.com/yamamuteki/chi-bus.jp/commit/5f02085f4146cbd5b96b8138d62135f4931ebf68) Use kakasi_parser gem (@yamamuteki)
+- [e18b88b](https://github.com/yamamuteki/chi-bus.jp/commit/e18b88bc2fbcd66a02c31f332283118c6bb96a45) Improve bus stops search (@yamamuteki)
+- [01004ee](https://github.com/yamamuteki/chi-bus.jp/commit/01004ee9fb5053b6194563543da81d6114809b01) Improve performance (@yamamuteki)
+- [2191120](https://github.com/yamamuteki/chi-bus.jp/commit/21911200340edc8defb072eef2fb7d3a97d3b75e) Enable GC profiler (@yamamuteki)
+- [33314fe](https://github.com/yamamuteki/chi-bus.jp/commit/33314fe52c42b328c036cbff05db0cf620cb1f55) Update README.md (@yamamuteki)
+
 ### v3.4.0 (2016/05/21 14:00 +00:00)
 - [9ed151b](https://github.com/yamamuteki/chi-bus.jp/commit/9ed151bdd3878d3d0dd9d4edc843dbadd94e3927) Add bus stops search by roman, hiragana or katakana (@yamamuteki)
 - [7e4105a](https://github.com/yamamuteki/chi-bus.jp/commit/7e4105a132e61e2304872de435e72cab612f7a4b) Improve geocording data dump and restore task (@yamamuteki)
@@ -47,10 +56,10 @@
 - [9d9547b](https://github.com/yamamuteki/chi-bus.jp/commit/9d9547befd5e84c0d8f0f9c759e83d5f8936aa5a) Update about page (@yamamuteki)
 
 ### v3.0.0 (2016/05/06 00:25 +00:00)
-- [cda3901](https://github.com/yamamuteki/chi-bus.jp/commit/cda3901c98390c684b7978db1aece374b442d413) Update README.md (@yamamuteki)
 - [088f634](https://github.com/yamamuteki/chi-bus.jp/commit/088f634edaa70ac929454b21f88df0b822050031) Add place address in infowindows (@yamamuteki)
-- [dc196eb](https://github.com/yamamuteki/chi-bus.jp/commit/dc196eb006e9204e7262a5f6d0278d8fa84d2fb6) Add text search using google places gem (@yamamuteki)
+- [cda3901](https://github.com/yamamuteki/chi-bus.jp/commit/cda3901c98390c684b7978db1aece374b442d413) Update README.md (@yamamuteki)
 - [5b83ea5](https://github.com/yamamuteki/chi-bus.jp/commit/5b83ea50f444606e30063f029cc9b642812d7797) Change order of current position marker (@yamamuteki)
+- [dc196eb](https://github.com/yamamuteki/chi-bus.jp/commit/dc196eb006e9204e7262a5f6d0278d8fa84d2fb6) Add text search using google places gem (@yamamuteki)
 - [2e02005](https://github.com/yamamuteki/chi-bus.jp/commit/2e020055dcafe4f9ebac8a23f6861152300f73a8) Disable turbolinks (@yamamuteki)
 - [38442b0](https://github.com/yamamuteki/chi-bus.jp/commit/38442b05d3b49fca38f58ef966a3c2b1930c59d3) Improve list layout (@yamamuteki)
 - [f098f25](https://github.com/yamamuteki/chi-bus.jp/commit/f098f25b140ab9e24e20d067afb66c2045df8530) Fix JavaScript error (@yamamuteki)
@@ -60,8 +69,8 @@
 - [cde502c](https://github.com/yamamuteki/chi-bus.jp/commit/cde502cdfbd9c6003092d594f458c97dac0cf916) Add drop animation to bus stops (@yamamuteki)
 - [4362dd9](https://github.com/yamamuteki/chi-bus.jp/commit/4362dd9e3b091e9ecca26c38c55e9949eff388ac) Fix nil reference (@yamamuteki)
 - [b296dd2](https://github.com/yamamuteki/chi-bus.jp/commit/b296dd2c61324496d27a911c876f07fdcaff36d5) Improve UX (@yamamuteki)
-- [476dc82](https://github.com/yamamuteki/chi-bus.jp/commit/476dc82543a556b5f4ab8027d81d266341b4a089) Change current position marker to small (@yamamuteki)
 - [1c6fcb1](https://github.com/yamamuteki/chi-bus.jp/commit/1c6fcb1521b04753f928424aa841a31c5545c142) Fix add event handler many times (@yamamuteki)
+- [476dc82](https://github.com/yamamuteki/chi-bus.jp/commit/476dc82543a556b5f4ab8027d81d266341b4a089) Change current position marker to small (@yamamuteki)
 - [c389474](https://github.com/yamamuteki/chi-bus.jp/commit/c389474b348ff79650ebc00ef51038f1341a05a1) Support Microsoft Edge (@yamamuteki)
 - [6e2f91a](https://github.com/yamamuteki/chi-bus.jp/commit/6e2f91ac6c809e3459f6960abc14b2e8112f9baf) Update README.md (@yamamuteki)
 
