@@ -44,4 +44,28 @@ class BusStopTest < ActiveSupport::TestCase
     assert_equal '2', bus_stop.bus_routes[3].operation_company
     assert_equal '2', bus_stop.bus_routes[3].line_name
   end
+
+  test "should reverse_geocode set attributes" do
+    Geocoder::Lookup::Test.add_stub(
+      [40.7143528, -74.0059731], [
+        {
+          'postal_code' => '000-0000',
+          'formatted_address' => '日本, Test Address'
+        }
+      ]
+    )
+
+    class Geocoder::Result::Test
+      def address_components_of_type(symbol)
+        [{ 'long_name' => 'City Name' }]
+      end
+    end
+
+    bus_stop = BusStop.new(latitude: 40.7143528, longitude:-74.0059731)
+    bus_stop.reverse_geocode
+
+    assert_equal '000-0000', bus_stop.postal_code
+    assert_equal 'City Name', bus_stop.city
+    assert_equal 'Test Address', bus_stop.formatted_address
+  end
 end

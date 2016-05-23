@@ -6,7 +6,7 @@ class BusStop < ActiveRecord::Base
       model.postal_code = geo.postal_code
       # model.prefecture = geo.state # Imported db/seeds.rb
       model.city = geo.address_components_of_type(:locality).last['long_name'] if geo.address_components_of_type(:locality).last
-      model.formatted_address = geo.formatted_address.delete('日本, ')
+      model.formatted_address = geo.formatted_address.sub('日本, ', '')
     end
   end
 

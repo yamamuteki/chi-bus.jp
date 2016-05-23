@@ -11,7 +11,7 @@ class Place
   end
 
   def formatted_address
-    @spot.formatted_address.delete('日本, ')
+    @spot.formatted_address.sub('日本, ', '')
   end
 
   def city
