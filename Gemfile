@@ -63,4 +63,5 @@ gem 'cache_clear_rails'
 gem 'puma'
 gem 'newrelic_rpm'
 gem 'kakasi_parser', groups: [:development, :test]
+gem 'coveralls', require: false
 

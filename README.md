@@ -1,4 +1,4 @@
-# chi-bus.jp [![Build Status](https://travis-ci.org/yamamuteki/chi-bus.jp.svg?branch=master)](https://travis-ci.org/yamamuteki/chi-bus.jp)
+# chi-bus.jp [![Build Status](https://travis-ci.org/yamamuteki/chi-bus.jp.svg?branch=master)](https://travis-ci.org/yamamuteki/chi-bus.jp) [![Coverage Status](https://coveralls.io/repos/github/yamamuteki/chi-bus.jp/badge.svg?branch=master)](https://coveralls.io/github/yamamuteki/chi-bus.jp?branch=master)
 
 A simple bus stops and routes information service for Chiba, Tokyo, Kanagawa and Saitama in Japan.
 
