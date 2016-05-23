@@ -78,7 +78,7 @@ def order_bus_stops
   BusRoute.find_each do |bus_route|
     index = 0
     bus_route_bus_stops = bus_route.bus_route_bus_stops
-    bus_route.bus_route_tracks.sort_by{|t| t.coordinates[0][1] }.each do |track|
+    bus_route.bus_route_tracks.sort_by{ |t| t.coordinates[0][1] }.each do |track|
       track.coordinates.each do |coordinate|
         latitude = coordinate[0]
         longitude = coordinate[1]
@@ -98,20 +98,22 @@ def order_bus_stops
   end
 end
 
-ActiveRecord::Base.transaction do
-  BusRouteBusStop.delete_all
-  BusRouteTrack.delete_all
-  BusRoute.delete_all
-  BusStop.delete_all
-  load_bus_routes 'db/N07-11_12.xml'
-  load_bus_routes 'db/N07-11_13.xml'
-  load_bus_routes 'db/N07-11_14.xml'
-  load_bus_routes 'db/N07-11_11.xml'
-  load_bus_stops 'db/P11-10_12-jgd-g.xml', '千葉県'
-  load_bus_stops 'db/P11-10_13-jgd-g.xml', '東京都'
-  load_bus_stops 'db/P11-10_14-jgd-g.xml', '神奈川県'
-  load_bus_stops 'db/P11-10_11-jgd-g.xml', '埼玉県'
-  order_bus_stops
-  Rake::Task['geocode:restore'].invoke
-  Rake::Task['keyword:restore'].invoke
+ActiveRecord::Base.uncached do
+  ActiveRecord::Base.transaction do
+    BusRouteBusStop.delete_all
+    BusRouteTrack.delete_all
+    BusRoute.delete_all
+    BusStop.delete_all
+    load_bus_routes 'db/N07-11_12.xml'
+    load_bus_routes 'db/N07-11_13.xml'
+    load_bus_routes 'db/N07-11_14.xml'
+    load_bus_routes 'db/N07-11_11.xml'
+    load_bus_stops 'db/P11-10_12-jgd-g.xml', '千葉県'
+    load_bus_stops 'db/P11-10_13-jgd-g.xml', '東京都'
+    load_bus_stops 'db/P11-10_14-jgd-g.xml', '神奈川県'
+    load_bus_stops 'db/P11-10_11-jgd-g.xml', '埼玉県'
+    order_bus_stops
+    Rake::Task['geocode:restore'].invoke
+    Rake::Task['keyword:restore'].invoke
+  end
 end
