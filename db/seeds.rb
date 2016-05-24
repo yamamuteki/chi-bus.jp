@@ -71,33 +71,6 @@ def load_bus_stops xml_path, prefecture
   end
 end
 
-def order_bus_stops
-  BusRouteBusStop.update_all(bus_stop_number: nil)
-
-  order_progress = ProgressBar.create(title: "Ordering", total: BusRoute.count, format: '%t: %J%% |%B|')
-  BusRoute.find_each do |bus_route|
-    index = 0
-    bus_route_bus_stops = bus_route.bus_route_bus_stops
-    bus_route.bus_route_tracks.sort_by{ |t| t.coordinates[0][1] }.each do |track|
-      track.coordinates.each do |coordinate|
-        latitude = coordinate[0]
-        longitude = coordinate[1]
-        bus_route_bus_stops.each do |bus_route_bus_stop|
-          next if bus_route_bus_stop.bus_stop_number
-          bus_stop = bus_route_bus_stop.bus_stop
-          distance = (bus_stop.latitude - latitude) ** 2 + (bus_stop.longitude - longitude) ** 2
-          if distance < 0.000001 then
-            bus_route_bus_stop.bus_stop_number = index += 1
-            bus_route_bus_stop.save
-            break
-          end
-        end
-      end
-    end
-    order_progress.increment
-  end
-end
-
 ActiveRecord::Base.uncached do
   ActiveRecord::Base.transaction do
     BusRouteBusStop.delete_all
@@ -112,7 +85,7 @@ ActiveRecord::Base.uncached do
     load_bus_stops 'db/P11-10_13-jgd-g.xml', '東京都'
     load_bus_stops 'db/P11-10_14-jgd-g.xml', '神奈川県'
     load_bus_stops 'db/P11-10_11-jgd-g.xml', '埼玉県'
-    order_bus_stops
+    Rake::Task['bus_stop_number:restore'].invoke
     Rake::Task['geocode:restore'].invoke
     Rake::Task['keyword:restore'].invoke
   end
