@@ -10,15 +10,33 @@
       会社員
       </p>
       <p class="lead">このバス停に来るバスは、<br />どこから来て、<br />どこへ行くのだろう？</p>
-      <div class="panel panel-default">
-        <div class="panel-heading">収録バス停数</div>
-        <div class="panel-body">
-          <% BusStop.group(:prefecture).order('max(id)').count.each do |key, value| %>
-            <%= "#{key}：#{value.to_s(:delimited)}" %><br />
+      <table class="table table-condensed text-right">
+        <thead>
+          <tr>
+            <th class="text-right">都道府県</th>
+            <th class="text-right">収録バス停数</th>
+            <th class="text-right">収録バス路線数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% bus_stop_count = BusStop.group(:prefecture).order('max(id)').count %>
+          <% bus_route_count = BusRouteBusStop.joins(:bus_stop).group(:prefecture).distinct.count(:bus_route_id) %>
+          <% bus_stop_count.each do |key, value| %>
+            <tr>
+              <td><%= "#{key}" %></td>
+              <td><%= "#{value.to_s(:delimited)}" %></td>
+              <td><%= "#{bus_route_count[key].to_i.to_s(:delimited)}" %></td>
+            </tr>
           <% end %>
-          <%= "合計：#{BusStop.count.to_s(:delimited)}"  %>
-        </div>
-      </div>
+          <tfoot>
+            <tr>
+              <th class="text-right">合計</th>
+              <th class="text-right"><%= "#{BusStop.count.to_s(:delimited)}" %></th>
+              <th class="text-right"><%= "#{BusRoute.count.to_s(:delimited)}" %></th>
+            </tr>
+          </tfoot>
+        </tbody>
+      </table>
     </div>
     <div class="col-xs-12 col-sm-8 list-window">
       <div class="panel panel-default">
