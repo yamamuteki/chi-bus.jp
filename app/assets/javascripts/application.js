@@ -53,12 +53,12 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
         "url": centerMakerImagePath,
         "width":  32,
         "height": 32
-      },
+      }
     });
     google.maps.event.addListener(handler.getMap(), 'center_changed', function(){
       centerMarker.getServiceObject().setPosition(this.getCenter());
     });
-    if (busStopsCount == 1 && !polylinesJson) {
+    if (busStopsCount === 1 && !polylinesJson) {
       handler.getMap().setZoom(15);
     }
   });
