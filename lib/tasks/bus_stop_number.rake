@@ -1,9 +1,9 @@
 namespace :bus_stop_number do
   desc 'Generate bus stop number'
   task generate: :environment do
-    BusRouteBusStop.update_all(bus_stop_number: nil)
-    progress = ProgressBar.create(title: "Ordering", total: BusRoute.count, format: '%t: %J%% |%B|')
+    progress = ProgressBar.create(title: "Generate", total: BusRoute.count, format: '%t: %J%% |%B|')
     ActiveRecord::Base.transaction do
+      BusRouteBusStop.update_all(bus_stop_number: nil)
       BusRoute.find_each do |bus_route|
         index = 0
         bus_route_bus_stops = bus_route.bus_route_bus_stops
