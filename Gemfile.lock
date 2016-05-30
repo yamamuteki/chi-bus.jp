@@ -44,7 +44,7 @@ GEM
       autoprefixer-rails (>= 5.2.1)
       sass (>= 3.3.4)
     builder (3.2.2)
-    byebug (9.0.4)
+    byebug (9.0.5)
     cache_clear_rails (0.4.0)
       rails (>= 4.0)
     choice (0.2.0)
@@ -118,7 +118,7 @@ GEM
     rack (1.6.4)
     rack-test (0.6.3)
       rack (>= 1.0)
-    rack-user_agent (0.5.0)
+    rack-user_agent (0.5.1)
       rack (>= 1.5)
       woothee (~> 1.0.0)
     rails (4.2.6)
@@ -254,4 +254,4 @@ DEPENDENCIES
   web-console (~> 3.0)
 
 BUNDLED WITH
-   1.11.2
+   1.12.5
