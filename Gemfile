@@ -65,5 +65,5 @@ gem 'newrelic_rpm'
 gem 'kakasi_parser', groups: [:development, :test]
 gem 'coveralls', require: false
 gem 'rails-erd', groups: [:development, :test]
-gem 'fast_simplify'
+gem 'simplify_rb'
 
