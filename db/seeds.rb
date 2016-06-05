@@ -15,8 +15,9 @@ def load_bus_routes xml_path
   bus_route_track_progress = ProgressBar.create(title: "BusRouteTrack", total: doc.css('Curve').count, format: '%t: %J%% |%B|')
   doc.css('Curve').each do |node|
     gml_id = node['id']
-    coordinates = node.at('posList').text.strip.each_line.map { |line| line.split.map(&:to_f) }
-    bus_route_track = BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: coordinates)
+    coordinates = node.at('posList').text.strip.each_line.map { |line| { x: line.split[0].to_f, y: line.split[1].to_f } }
+    simplified_coordinates = SimplifyRb.simplify(coordinates, 0.0001).map { |c| [c[:x], c[:y]] }
+    bus_route_track = BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: simplified_coordinates)
     bus_route_track_progress.increment
   end
 

@@ -23,9 +23,8 @@ module ApplicationHelper
       {
         id: bus_route.id,
         tracks: bus_route.bus_route_tracks.map do |track|
-          coordinates = track.coordinates.map { |coordinate| { x: coordinate[0], y: coordinate[1] } }
-          SimplifyRb.simplify(coordinates, 0.0001).map do |coordinate|
-            { lat: coordinate[:x], lng: coordinate[:y] }
+          track.coordinates.map do |coordinate|
+            { lat: coordinate[0], lng: coordinate[1] }
           end.compact
         end
       }
