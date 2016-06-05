@@ -81,10 +81,16 @@ ActiveRecord::Base.uncached do
     load_bus_routes 'db/N07-11_13.xml'
     load_bus_routes 'db/N07-11_14.xml'
     load_bus_routes 'db/N07-11_11.xml'
+    load_bus_routes 'db/N07-11_08.xml'
+    load_bus_routes 'db/N07-11_09.xml'
+    load_bus_routes 'db/N07-11_10.xml'
     load_bus_stops 'db/P11-10_12-jgd-g.xml', '千葉県'
     load_bus_stops 'db/P11-10_13-jgd-g.xml', '東京都'
     load_bus_stops 'db/P11-10_14-jgd-g.xml', '神奈川県'
     load_bus_stops 'db/P11-10_11-jgd-g.xml', '埼玉県'
+    load_bus_stops 'db/P11-10_08-jgd-g.xml', '茨城県'
+    load_bus_stops 'db/P11-10_09-jgd-g.xml', '栃木県'
+    load_bus_stops 'db/P11-10_10-jgd-g.xml', '群馬県'
     Rake::Task['bus_stop_number:restore'].invoke
     Rake::Task['geocode:restore'].invoke
     Rake::Task['keyword:restore'].invoke

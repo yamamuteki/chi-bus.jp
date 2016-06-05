@@ -1,4 +1,15 @@
 namespace :geocode do
+  desc 'Generate geocording data'
+  task generate: :environment do
+    query = BusStop.where(formatted_address: nil);
+    progress = ProgressBar.create(title: "Generate", total: query.count, format: '%t: %J%% |%B|')
+    query.find_each.each do |bus_stop|
+      bus_stop.reverse_geocode
+      bus_stop.save!
+      progress.increment
+    end
+  end
+
   desc 'Dump geocording data'
   task dump: :environment do
     progress = ProgressBar.create(title: "Dump", total: BusStop.count, format: '%t: %J%% |%B|')
