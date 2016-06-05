@@ -28,9 +28,10 @@ namespace :geocode do
 
   desc 'Restore geocording data'
   task restore: :environment do
-    progress = ProgressBar.create(title: "Restore", total: BusStop.count, format: '%t: %J%% |%B|')
+    records = JSON.parse(File.read('db/geocording_data.json'))
+    progress = ProgressBar.create(title: "Restore", total: records.count, format: '%t: %J%% |%B|')
     ActiveRecord::Base.transaction do
-      JSON.parse(File.read('db/geocording_data.json')).each do |record|
+      records.each do |record|
         bus_stop = BusStop.find record['bus_stop_id']
         bus_stop.update(
           postal_code: record['postal_code'],

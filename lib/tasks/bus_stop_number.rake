@@ -44,9 +44,10 @@ namespace :bus_stop_number do
 
   desc 'Restore bus stop number'
   task restore: :environment do
-    progress = ProgressBar.create(title: "Restore", total: BusRouteBusStop.count, format: '%t: %J%% |%B|')
+    records = JSON.parse(File.read('db/bus_stop_number.json'))
+    progress = ProgressBar.create(title: "Restore", total: records.count, format: '%t: %J%% |%B|')
     ActiveRecord::Base.transaction do
-      JSON.parse(File.read('db/bus_stop_number.json')).each do |record|
+      records.each do |record|
         bus_route_bus_stop = BusRouteBusStop.find record['bus_route_bus_stop_id']
         bus_route_bus_stop.update(
           bus_stop_number: record['bus_stop_number']
