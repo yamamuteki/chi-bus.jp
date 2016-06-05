@@ -6,6 +6,12 @@ A simple bus stops and routes information service for Chiba, Tokyo, Kanagawa and
 
 ## Change Log
 
+### v3.7.0 (2016/06/05 09:05 +00:00)
+- [b60e403](https://github.com/yamamuteki/chi-bus.jp/commit/b60e4037f779d0acd2c802fa9a6c73e7a493b49a) Simplify coordinates in seeds.rb (@yamamuteki)
+- [81e7fba](https://github.com/yamamuteki/chi-bus.jp/commit/81e7fba9b014263bd24cac9f5e2370a29df32a67) Fix progress problem (@yamamuteki)
+- [32fee77](https://github.com/yamamuteki/chi-bus.jp/commit/32fee77ee91b9d9b2512f516f5518a773dd1201d) Add bus stops and routes in Ibaraki, Tochigi, Gunma (@yamamuteki)
+- [4267fb5](https://github.com/yamamuteki/chi-bus.jp/commit/4267fb5702c29f1708e54403f67db34d818f886e) Update README.md (@yamamuteki)
+
 ### v3.6.0 (2016/06/03 11:49 +00:00)
 - [07cb127](https://github.com/yamamuteki/chi-bus.jp/commit/07cb127129409d0ae9bad82525d3b293241224ac) Use simplify_rb gem (@yamamuteki)
 - [4be1d03](https://github.com/yamamuteki/chi-bus.jp/commit/4be1d03b617758a88339d48c6733f547371ef57c) Bundle update (@yamamuteki)
@@ -53,8 +59,8 @@ A simple bus stops and routes information service for Chiba, Tokyo, Kanagawa and
 - [9c85935](https://github.com/yamamuteki/chi-bus.jp/commit/9c859356108a4548038900a66c888762b45980be) Use Puma (@yamamuteki)
 - [8cec615](https://github.com/yamamuteki/chi-bus.jp/commit/8cec615b763e6614ee1ab3c2e513b9ed58f98f3f) Change mascot images (@yamamuteki)
 - [bc0dbb2](https://github.com/yamamuteki/chi-bus.jp/commit/bc0dbb2d0dfbe82c963bdafa4feb272cdddc36fa) Add city in bus stops list (@yamamuteki)
-- [b3891c6](https://github.com/yamamuteki/chi-bus.jp/commit/b3891c622dba667a9e3c004a13d3ef37d0c433a9) Change geocoding to cache in database (@yamamuteki)
 - [a764708](https://github.com/yamamuteki/chi-bus.jp/commit/a76470884cdf93e2c49e7a5f45ae5a7d8ba4c91a) Add bus stop stats in about page (@yamamuteki)
+- [b3891c6](https://github.com/yamamuteki/chi-bus.jp/commit/b3891c622dba667a9e3c004a13d3ef37d0c433a9) Change geocoding to cache in database (@yamamuteki)
 - [8178342](https://github.com/yamamuteki/chi-bus.jp/commit/8178342ce5dc56c1435a1cf724b232cdcd541cef) Update home message (@yamamuteki)
 - [1547c02](https://github.com/yamamuteki/chi-bus.jp/commit/1547c02b59a6de0fb1150ae6f8389d8e172306a0) Update README.md (@yamamuteki)
 
@@ -88,10 +94,10 @@ A simple bus stops and routes information service for Chiba, Tokyo, Kanagawa and
 - [9d9547b](https://github.com/yamamuteki/chi-bus.jp/commit/9d9547befd5e84c0d8f0f9c759e83d5f8936aa5a) Update about page (@yamamuteki)
 
 ### v3.0.0 (2016/05/06 00:25 +00:00)
+- [5b83ea5](https://github.com/yamamuteki/chi-bus.jp/commit/5b83ea50f444606e30063f029cc9b642812d7797) Change order of current position marker (@yamamuteki)
 - [cda3901](https://github.com/yamamuteki/chi-bus.jp/commit/cda3901c98390c684b7978db1aece374b442d413) Update README.md (@yamamuteki)
 - [088f634](https://github.com/yamamuteki/chi-bus.jp/commit/088f634edaa70ac929454b21f88df0b822050031) Add place address in infowindows (@yamamuteki)
 - [dc196eb](https://github.com/yamamuteki/chi-bus.jp/commit/dc196eb006e9204e7262a5f6d0278d8fa84d2fb6) Add text search using google places gem (@yamamuteki)
-- [5b83ea5](https://github.com/yamamuteki/chi-bus.jp/commit/5b83ea50f444606e30063f029cc9b642812d7797) Change order of current position marker (@yamamuteki)
 - [2e02005](https://github.com/yamamuteki/chi-bus.jp/commit/2e020055dcafe4f9ebac8a23f6861152300f73a8) Disable turbolinks (@yamamuteki)
 - [38442b0](https://github.com/yamamuteki/chi-bus.jp/commit/38442b05d3b49fca38f58ef966a3c2b1930c59d3) Improve list layout (@yamamuteki)
 - [f098f25](https://github.com/yamamuteki/chi-bus.jp/commit/f098f25b140ab9e24e20d067afb66c2045df8530) Fix JavaScript error (@yamamuteki)
@@ -101,8 +107,8 @@ A simple bus stops and routes information service for Chiba, Tokyo, Kanagawa and
 - [cde502c](https://github.com/yamamuteki/chi-bus.jp/commit/cde502cdfbd9c6003092d594f458c97dac0cf916) Add drop animation to bus stops (@yamamuteki)
 - [4362dd9](https://github.com/yamamuteki/chi-bus.jp/commit/4362dd9e3b091e9ecca26c38c55e9949eff388ac) Fix nil reference (@yamamuteki)
 - [b296dd2](https://github.com/yamamuteki/chi-bus.jp/commit/b296dd2c61324496d27a911c876f07fdcaff36d5) Improve UX (@yamamuteki)
-- [c389474](https://github.com/yamamuteki/chi-bus.jp/commit/c389474b348ff79650ebc00ef51038f1341a05a1) Support Microsoft Edge (@yamamuteki)
 - [476dc82](https://github.com/yamamuteki/chi-bus.jp/commit/476dc82543a556b5f4ab8027d81d266341b4a089) Change current position marker to small (@yamamuteki)
+- [c389474](https://github.com/yamamuteki/chi-bus.jp/commit/c389474b348ff79650ebc00ef51038f1341a05a1) Support Microsoft Edge (@yamamuteki)
 - [1c6fcb1](https://github.com/yamamuteki/chi-bus.jp/commit/1c6fcb1521b04753f928424aa841a31c5545c142) Fix add event handler many times (@yamamuteki)
 - [6e2f91a](https://github.com/yamamuteki/chi-bus.jp/commit/6e2f91ac6c809e3459f6960abc14b2e8112f9baf) Update README.md (@yamamuteki)
 
@@ -162,9 +168,9 @@ A simple bus stops and routes information service for Chiba, Tokyo, Kanagawa and
 - [a24c3a3](https://github.com/yamamuteki/chi-bus.jp/commit/a24c3a3f89877d894fdc9e11aa4f577267349202) Show bus stops and routes count (@yamamuteki)
 
 ### v1.4.2 (2016/04/29 07:38 +00:00)
-- [0afdaf1](https://github.com/yamamuteki/chi-bus.jp/commit/0afdaf1260ba3f4546df3cc0029c4c40322ceab4) Fix invisible current position marker with position params (@yamamuteki)
-- [223935b](https://github.com/yamamuteki/chi-bus.jp/commit/223935b6d65541ea85d0fac3ba9115fa5ad8c9ec) Improve UX (@yamamuteki)
 - [e816c4a](https://github.com/yamamuteki/chi-bus.jp/commit/e816c4a5d39f97cce17f136341945bbefb1d00e5) Improve UX (@yamamuteki)
+- [223935b](https://github.com/yamamuteki/chi-bus.jp/commit/223935b6d65541ea85d0fac3ba9115fa5ad8c9ec) Improve UX (@yamamuteki)
+- [0afdaf1](https://github.com/yamamuteki/chi-bus.jp/commit/0afdaf1260ba3f4546df3cc0029c4c40322ceab4) Fix invisible current position marker with position params (@yamamuteki)
 
 ### v1.4.1 (2016/04/29 04:47 +00:00)
 - [f677873](https://github.com/yamamuteki/chi-bus.jp/commit/f6778733b8912d3f765e5897a8c883165cb5f9cb) Fix invisible bus stop markers with position params (@yamamuteki)
