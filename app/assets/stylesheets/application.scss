@@ -17,6 +17,13 @@
 @import "bootstrap-sprockets";
 @import "bootstrap";
 
+/* Cancel print href with Bootstrap 3 */
+@media print{
+a[href]:after {
+    content: "" !important;
+  }
+}
+
 /* iPhoneでinputが拡大されるのを無効化 */
 input[type='text'],
 input[type='number'],
