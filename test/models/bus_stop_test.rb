@@ -56,8 +56,8 @@ class BusStopTest < ActiveSupport::TestCase
     )
 
     class Geocoder::Result::Test
-      def address_components_of_type(symbol)
-        [{ 'long_name' => 'City Name' }]
+      def address_components
+        [{ 'types' => ['locality', 'political'], 'long_name' => 'City Name' }]
       end
     end
 
