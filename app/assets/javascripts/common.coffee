@@ -36,11 +36,15 @@ $ ->
   listResize()
   $(window).resize ->
     listResize()
+  mql = window.matchMedia('print')
+  mql.addListener (mql) ->
+    if mql.matches
+      listResize()
 
 listResize = ->
   return unless $(".list-window").length
   $(".map").height($(window).height() - 120)
-  if $(window).width() < 768
+  if $(window).width() < 768 || window.matchMedia("print").matches
     $(".list-window").height("auto")
     $(".list-window").css("overflow-y", "visible")
   else
