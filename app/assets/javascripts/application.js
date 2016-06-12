@@ -55,8 +55,15 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
         "height": 32
       }
     });
-    google.maps.event.addListener(handler.getMap(), 'center_changed', function(){
-      centerMarker.getServiceObject().setPosition(this.getCenter());
+    var center = handler.getMap().getCenter();
+    var updateCenter = function(){
+      center = this.getCenter();
+      centerMarker.getServiceObject().setPosition(center);
+    }
+    google.maps.event.addListener(handler.getMap(), 'drag', updateCenter);
+    google.maps.event.addListener(handler.getMap(), 'idle', updateCenter);
+    google.maps.event.addDomListener(window, 'resize', function(){
+      handler.getMap().setCenter(center);
     });
     if (busStopsCount === 1 && !polylinesJson) {
       handler.getMap().setZoom(15);
