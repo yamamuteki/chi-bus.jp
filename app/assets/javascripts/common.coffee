@@ -43,12 +43,12 @@ $ ->
 
 listResize = ->
   return unless $(".list-window").length
-  $(".map").height($(window).height() - 120)
+  $(".map").height($(window).height() - 125)
   if $(window).width() < 768 || window.matchMedia("print").matches
     $(".list-window").height("auto")
     $(".list-window").css("overflow-y", "visible")
   else
-    $(".list-window").height($(window).height() - $(".list-window").offset().top - 10)
+    $(".list-window").height($(window).height() - $(".list-window").offset().top - 11)
     $(".list-window").css("overflow-y", "scroll")
 
 $ ->

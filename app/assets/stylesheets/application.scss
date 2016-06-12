@@ -17,6 +17,11 @@
 @import "bootstrap-sprockets";
 @import "bootstrap";
 
+/* Fix visivle google maps on print preview in Google Chrome */
+img {
+  max-width: none !important;
+}
+
 /* Cancel print href with Bootstrap 3 */
 @media print{
 a[href]:after {
