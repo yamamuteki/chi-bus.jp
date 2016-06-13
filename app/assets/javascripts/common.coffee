@@ -45,34 +45,35 @@ listResize = ->
     $(".list-window").height("auto")
     $(".list-window").css("overflow-y", "visible")
   else
-    $(".list-window").height($(window).height() - $(".list-window").offset().top - 11)
+    listWindowHeight = $(window).height() - $(".list-window").offset().top - 11
+    $(".list-window").height(listWindowHeight)
     $(".list-window").css("overflow-y", "scroll")
 
 $ ->
+  setPolylineOptions = (object, strokeColor, strokeOpacity, zIndex) ->
+    id = $(object).attr('data-bus-route-link')
+    return unless document.body.meta.polylines
+    for polyline in document.body.meta.polylines
+      if polyline.id + '' == id
+        polyline.getServiceObject().setOptions({
+          strokeColor: strokeColor,
+          strokeOpacity: strokeOpacity,
+          zIndex: zIndex
+        })
   $("a[data-bus-route-link]").on 'mouseenter', (e) ->
-    id = $(this).attr('data-bus-route-link')
-    return unless document.body.meta.polylines
-    for polyline in document.body.meta.polylines
-      if polyline.id + '' == id
-        polyline.getServiceObject().setOptions({ strokeColor: '#c00', strokeOpacity: 1.0, zIndex: 1 })
+    setPolylineOptions(this, '#c00', 1.0, 1)
   $("a[data-bus-route-link]").on 'mouseleave click', (e) ->
-    id = $(this).attr('data-bus-route-link')
-    return unless document.body.meta.polylines
-    for polyline in document.body.meta.polylines
-      if polyline.id + '' == id
-        polyline.getServiceObject().setOptions({ strokeColor: '#00f', strokeOpacity: 0.5, zIndex: 0 })
+    setPolylineOptions(this, '#00f', 0.5, 0)
 
 $ ->
+  setMarkerAnimation = (object, animation) ->
+    id = $(object).attr('data-bus-stop-link')
+    return unless document.body.meta.markers
+    for marker in document.body.meta.markers
+      if marker.id + '' == id
+        marker.getServiceObject().setAnimation(animation)
   $("a[data-bus-stop-link]").on 'mouseenter', (e) ->
-    id = $(this).attr('data-bus-stop-link')
-    return unless document.body.meta.markers
-    for marker in document.body.meta.markers
-      if marker.id + '' == id
-        marker.getServiceObject().setAnimation(google.maps.Animation.BOUNCE)
+    setMarkerAnimation(this, google.maps.Animation.BOUNCE)
   $("a[data-bus-stop-link]").on 'mouseleave click', (e) ->
-    id = $(this).attr('data-bus-stop-link')
-    return unless document.body.meta.markers
-    for marker in document.body.meta.markers
-      if marker.id + '' == id
-        marker.getServiceObject().setAnimation(null)
+    setMarkerAnimation(this, null)
 
