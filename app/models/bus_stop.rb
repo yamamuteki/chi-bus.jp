@@ -6,7 +6,7 @@ class BusStop < ActiveRecord::Base
     if geo
       model.postal_code = geo.postal_code
       # model.prefecture = geo.state # Imported db/seeds.rb
-      city_node = geo.address_components.select { |c| c['types'] == ['locality', 'political'] }.first
+      city_node = geo.address_components.find { |c| c['types'] == ['locality', 'political'] }
       model.city = city_node['long_name'] if city_node
       model.formatted_address = geo.formatted_address.sub('日本, ', '')
     end
