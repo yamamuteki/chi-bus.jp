@@ -4,19 +4,16 @@
 $ ->
   $("button[data-geolocation]").click (e) ->
     return if $(this).closest("form").find("#q").val() != '' # keyword search
-    if (navigator.geolocation)
-      navigator.geolocation.getCurrentPosition(success, error)
+    if navigator.geolocation
+      navigator.geolocation.getCurrentPosition (position) ->
+        lat = position.coords.latitude
+        long = position.coords.longitude
+        window.location.href = '/bus_stops?position=' + lat + ',' + long
+      , (err) ->
+        console.warn('ERROR(' + err.code + '): ' + err.message)
     else
       console.warn('Navigator.geolocation not supported.')
     false
-
-success = (position) ->
-  lat = position.coords.latitude
-  long = position.coords.longitude
-  window.location.href = '/bus_stops?position=' + lat + ',' + long
-
-error = (err) ->
-  console.warn('ERROR(' + err.code + '): ' + err.message)
 
 $ ->
   $("a[data-search-map-center]").click (e) ->
