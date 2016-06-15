@@ -17,7 +17,7 @@ def load_bus_routes xml_path
     gml_id = node['id']
     coordinates = node.at('posList').text.strip.each_line.map { |line| { x: line.split[0].to_f, y: line.split[1].to_f } }
     simplified_coordinates = SimplifyRb.simplify(coordinates, 0.0001).map { |c| [c[:x], c[:y]] }
-    bus_route_track = BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: simplified_coordinates)
+    BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: simplified_coordinates)
     bus_route_track_progress.increment
   end
 
