@@ -2,9 +2,9 @@ module ApplicationHelper
   def build_markers(bus_stops, position = nil)
     markers = []
     if position then
-      markers += Gmaps4rails.build_markers([position]) do |bus_stop, marker|
-        marker.lat position.split(',')[0]
-        marker.lng position.split(',')[1]
+      markers += Gmaps4rails.build_markers([position]) do |p, marker|
+        marker.lat p.split(',')[0]
+        marker.lng p.split(',')[1]
         marker.picture({ url: image_path('bluedot.png'), width: '20', height: '20' })
       end
     end
