@@ -19,7 +19,7 @@ module ApplicationHelper
   end
 
   def build_routes(bus_routes)
-    tracks = bus_routes.map do |bus_route|
+    bus_routes.map do |bus_route|
       {
         id: bus_route.id,
         tracks: bus_route.bus_route_tracks.map do |track|
