@@ -8,20 +8,24 @@
 
 require 'nokogiri'
 
-def load_bus_routes xml_path
-  doc = Nokogiri::XML(open(xml_path))
-  doc.remove_namespaces!
-
-  bus_route_track_progress = ProgressBar.create(title: "BusRouteTrack", total: doc.css('Curve').count, format: '%t: %J%% |%B|')
+def load_bus_route_track xml_path, doc
+  progress = ProgressBar.create(title: "BusRouteTrack", total: doc.css('Curve').count, format: '%t: %J%% |%B|')
   doc.css('Curve').each do |node|
     gml_id = node['id']
     coordinates = node.at('posList').text.strip.each_line.map { |line| { x: line.split[0].to_f, y: line.split[1].to_f } }
     simplified_coordinates = SimplifyRb.simplify(coordinates, 0.0001).map { |c| [c[:x], c[:y]] }
     BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: simplified_coordinates)
-    bus_route_track_progress.increment
+    progress.increment
   end
+end
 
-  bus_route_progress = ProgressBar.create(title: "BusRoute", total: doc.css('BusRoute').count, format: '%t: %J%% |%B|')
+def load_bus_routes xml_path
+  doc = Nokogiri::XML(open(xml_path))
+  doc.remove_namespaces!
+
+  load_bus_route_track xml_path, doc
+
+  progress = ProgressBar.create(title: "BusRoute", total: doc.css('BusRoute').count, format: '%t: %J%% |%B|')
   doc.css('BusRoute').each do |node|
     href = node.at('brt')['href'].remove '#'
     bus_type = node.at('bsc').text.to_i
@@ -41,7 +45,7 @@ def load_bus_routes xml_path
       note: note
     )
     bus_route.bus_route_tracks << BusRouteTrack.find_by(gml_id: "#{xml_path}/#{href}")
-    bus_route_progress.increment
+    progress.increment
   end
 end
 
@@ -54,7 +58,7 @@ def load_bus_stops xml_path, prefecture
     pos_hash[node['id']] = node.at('pos').text
   end
 
-  bus_stop_progress = ProgressBar.create(title: "BusStop", total: doc.css('BusStop').count, format: '%t: %J%% |%B|')
+  progress = ProgressBar.create(title: "BusStop", total: doc.css('BusStop').count, format: '%t: %J%% |%B|')
   doc.css('BusStop').each do |node|
     gml_id = node['id']
     name = node.at('busStopName').text
@@ -68,7 +72,7 @@ def load_bus_stops xml_path, prefecture
       bus_route = BusRoute.find_by(bus_type: bus_type, operation_company: operation_company, line_name: line_name)
       bus_stop.bus_routes << bus_route if bus_route
     end
-    bus_stop_progress.increment
+    progress.increment
   end
 end
 
