@@ -5,3 +5,6 @@ languages:
   Python: true
 exclude_paths:
 - "app/assets/javascripts/underscore-min.js"
+engines:
+  duplication:
+    enabled: false
