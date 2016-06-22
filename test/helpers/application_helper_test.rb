@@ -53,12 +53,12 @@ class ApplicationHelperTest < ActionView::TestCase
   test "shuld build_routes return bus route hash" do
     bus_routes = [
       BusRoute.new(id: 1) do |bus_route|
-        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[1.5, 2.5]])
-        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[3.5, 4.5]])
+        bus_route.bus_route_tracks.build(coordinates: [[1.5, 2.5]])
+        bus_route.bus_route_tracks.build(coordinates: [[3.5, 4.5]])
       end,
       BusRoute.new(id: 2) do |bus_route|
-        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[5.5, 6.5]])
-        bus_route.bus_route_tracks << BusRouteTrack.new(coordinates: [[7.5, 8.5]])
+        bus_route.bus_route_tracks.build(coordinates: [[5.5, 6.5]])
+        bus_route.bus_route_tracks.build(coordinates: [[7.5, 8.5]])
       end
     ]
 
