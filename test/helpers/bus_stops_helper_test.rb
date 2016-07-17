@@ -2,6 +2,7 @@ require 'test_helper'
 
 class BusStopsHelperTest < ActionView::TestCase
   include BusStopsHelper
+  include Rails.application.routes.url_helpers
 
   test "should bus_stop_or_place_path return bus_stop_path" do
     bus_stop = BusStop.new(id: 1)

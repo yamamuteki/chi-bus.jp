@@ -30,14 +30,9 @@ class BusRouteTest < ActiveSupport::TestCase
   end
 
   test "should bus_route_bus_stops order by bus_stop_number" do
-    bus_route = BusRoute.new
+    bus_route = BusRoute.create!
     bus_route.bus_route_bus_stops << BusRouteBusStop.new(bus_stop_number: 2, bus_stop: BusStop.new(name: '2'))
     bus_route.bus_route_bus_stops << BusRouteBusStop.new(bus_stop_number: 1, bus_stop: BusStop.new(name: '1'))
-    assert_equal 2, bus_route.bus_route_bus_stops[0].bus_stop_number
-    assert_equal 1, bus_route.bus_route_bus_stops[1].bus_stop_number
-    bus_route.save
-
-    bus_route.reload
     assert_equal 1, bus_route.bus_route_bus_stops[0].bus_stop_number
     assert_equal 2, bus_route.bus_route_bus_stops[1].bus_stop_number
     assert_equal '1', bus_route.bus_stops[0].name

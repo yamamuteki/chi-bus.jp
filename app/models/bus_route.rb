@@ -1,4 +1,4 @@
-class BusRoute < ActiveRecord::Base
+class BusRoute < ApplicationRecord
   has_many :bus_route_tracks
   has_many :bus_route_bus_stops, -> { order(:bus_stop_number) }
   has_many :bus_stops, through: :bus_route_bus_stops

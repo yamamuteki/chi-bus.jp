@@ -8,7 +8,7 @@ class BusStopsControllerTest < ActionController::TestCase
   end
 
   test "should get index with bus stop query and hits" do
-    get :index, { q: 'Stop' }
+    get :index, params: { q: 'Stop' }
     assert_response :success
     bus_stops = assigns(:bus_stops)
     assert bus_stops
@@ -23,7 +23,7 @@ class BusStopsControllerTest < ActionController::TestCase
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
 
-    get :index, { q: 'no hits' }
+    get :index, params: { q: 'no hits' }
     assert_response :success
     bus_stops = assigns(:bus_stops)
     assert bus_stops
@@ -46,7 +46,7 @@ class BusStopsControllerTest < ActionController::TestCase
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
 
-    get :index, { q: 'hits' }
+    get :index, params: { q: 'hits' }
     assert_response :success
     bus_stops = assigns(:bus_stops)
     assert bus_stops
@@ -55,7 +55,7 @@ class BusStopsControllerTest < ActionController::TestCase
   end
 
   test "should get index with position" do
-    get :index, { position: '40.7143528,-74.0059731' }
+    get :index, params: { position: '40.7143528,-74.0059731' }
     assert_response :success
     assert assigns(:bus_stops)
   end
@@ -75,7 +75,7 @@ class BusStopsControllerTest < ActionController::TestCase
       ]
     )
 
-    get :show, { id: bus_stops(:one) }
+    get :show, params: { id: bus_stops(:one) }
     assert_response :success
     assert assigns(:bus_stop)
   end

@@ -13,20 +13,22 @@ class ApplicationHelperTest < ActionView::TestCase
       BusStop.new(id: 1, latitude: 3.5, longitude: 4.5, name: 'name_1'),
       BusStop.new(id: 2, latitude: 5.5, longitude: 6.5, name: 'name_2')
     ]
-    results = build_markers(bus_stops)
-    assert_equal 2, results.length
+    stub(:render, true) do
+      results = build_markers(bus_stops)
+      assert_equal 2, results.length
 
-    assert_equal 1, results[0][:id]
-    assert_equal 3.5, results[0][:lat]
-    assert_equal 4.5, results[0][:lng]
-    assert_equal 'name_1', results[0][:marker_title]
-    assert results[0][:infowindow]
+      assert_equal 1, results[0][:id]
+      assert_equal 3.5, results[0][:lat]
+      assert_equal 4.5, results[0][:lng]
+      assert_equal 'name_1', results[0][:marker_title]
+      assert results[0][:infowindow]
 
-    assert_equal 2, results[1][:id]
-    assert_equal 5.5, results[1][:lat]
-    assert_equal 6.5, results[1][:lng]
-    assert_equal 'name_2', results[1][:marker_title]
-    assert results[1][:infowindow]
+      assert_equal 2, results[1][:id]
+      assert_equal 5.5, results[1][:lat]
+      assert_equal 6.5, results[1][:lng]
+      assert_equal 'name_2', results[1][:marker_title]
+      assert results[1][:infowindow]
+    end
   end
 
   test "should build_markers return position markers" do
@@ -41,8 +43,10 @@ class ApplicationHelperTest < ActionView::TestCase
   end
 
   test "should build_markers return bus stops and position markers" do
-    results = build_markers([BusStop.new(id: 1)], '1.5,2.5')
-    assert_equal 2, results.length
+    stub(:render, true) do
+      results = build_markers([BusStop.new(id: 1)], '1.5,2.5')
+      assert_equal 2, results.length
+    end
   end
 
   test "shuld build_routes return empty" do

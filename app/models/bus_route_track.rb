@@ -1,4 +1,4 @@
-class BusRouteTrack < ActiveRecord::Base
+class BusRouteTrack < ApplicationRecord
   belongs_to :bus_route
   serialize :coordinates, JSON
 end

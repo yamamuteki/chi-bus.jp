@@ -1,4 +1,4 @@
-class BusStop < ActiveRecord::Base
+class BusStop < ApplicationRecord
   has_many :bus_route_bus_stops
   has_many :bus_routes, -> { order('operation_company, line_name') }, through: :bus_route_bus_stops
   reverse_geocoded_by :latitude, :longitude, address: :formatted_address do |model, results|
