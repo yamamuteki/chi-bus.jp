@@ -24,12 +24,6 @@ $ ->
     false
 
 $ ->
-  $("input[data-toggle-draggable]").change (e) ->
-    value = $(this).prop('checked')
-    handler.getMap().setOptions({draggable: !value})
-  $("input[data-toggle-draggable]").prop("checked", from_smartphone()).change()
-
-$ ->
   listResize()
   $(window).resize ->
     listResize()
