@@ -6,6 +6,13 @@ A simple bus stops and routes information service for Chiba, Tokyo, Kanagawa and
 
 ## Change Log
 
+### v4.1.0 (2017/02/07 13:20 +00:00)
+- [ce43c35](https://github.com/yamamuteki/chi-bus.jp/commit/ce43c35653677aefc89e62aa469d20f743c783d4) Disable WOVN.io (@yamamuteki)
+- [ac60ba3](https://github.com/yamamuteki/chi-bus.jp/commit/ac60ba3b71045fdb2ea679dbf6028fe11d560dad) Disable draggable checkbox (@yamamuteki)
+- [6faba24](https://github.com/yamamuteki/chi-bus.jp/commit/6faba240a9d886eeaa0ae12ef9ace58f60505354) Use assert_nil if expecting nil (@yamamuteki)
+- [197e5bc](https://github.com/yamamuteki/chi-bus.jp/commit/197e5bcc363e88f12f9405de60c336abee13a37f) Bundle update (@yamamuteki)
+- [3686777](https://github.com/yamamuteki/chi-bus.jp/commit/368677723c24fdcc7c6faf339b637bccadc9e5ae) Update README.md (@yamamuteki)
+
 ### v4.0.0 (2016/07/17 07:31 +00:00)
 - [b29b040](https://github.com/yamamuteki/chi-bus.jp/commit/b29b040ede7660677ebe005ccb007e7101db29bf) Update to Rails 5 (@yamamuteki)
 
