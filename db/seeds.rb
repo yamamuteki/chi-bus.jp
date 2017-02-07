@@ -13,7 +13,7 @@ def load_bus_route_track xml_path, doc
   doc.css('Curve').each do |node|
     gml_id = node['id']
     coordinates = node.at('posList').text.strip.each_line.map { |line| { x: line.split[0].to_f, y: line.split[1].to_f } }
-    simplified_coordinates = SimplifyRb.simplify(coordinates, 0.0001).map { |c| [c[:x], c[:y]] }
+    simplified_coordinates = SimplifyRb::Simplifier.new.process(coordinates, 0.0001).map { |c| [c[:x], c[:y]] }
     BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: simplified_coordinates)
     progress.increment
   end
