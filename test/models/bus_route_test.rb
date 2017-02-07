@@ -21,7 +21,7 @@ class BusRouteTest < ActiveSupport::TestCase
 
   test "should bus_type_label return" do
     bus_route = BusRoute.new
-    assert_equal nil, bus_route.bus_type_label
+    assert_nil bus_route.bus_type_label
     bus_route.bus_type = 1; assert_equal '路線バス（民間）', bus_route.bus_type_label
     bus_route.bus_type = 2; assert_equal '路線バス（公営）', bus_route.bus_type_label
     bus_route.bus_type = 3; assert_equal 'コミュニティバス', bus_route.bus_type_label
