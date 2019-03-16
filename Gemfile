@@ -2,9 +2,9 @@ source 'https://rubygems.org'
 
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 5.0.0'
+gem 'rails', '~> 5.0.7'
 # Use sqlite3 as the database for Active Record
-gem 'sqlite3', groups: [:development, :test]
+gem 'sqlite3', '~> 1.3.13', groups: [:development, :test]
 gem 'pg', group: :production
 # Use Puma as the app server
 gem 'puma', '~> 3.0'
@@ -65,7 +65,7 @@ gem "sitemap_generator"
 gem "redis-rails"
 gem 'cache_clear_rails'
 gem 'newrelic_rpm'
-gem 'kakasi_parser', groups: [:development, :test]
+# gem 'kakasi_parser', groups: [:development, :test]
 gem 'coveralls', require: false
 gem 'rails-erd', groups: [:development, :test]
 gem 'simplify_rb'
