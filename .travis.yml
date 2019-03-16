@@ -1,6 +1,6 @@
 language: ruby
 rvm:
-  - 2.2.4
+  - 2.5.0
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libkakasi2 libkakasi2-dev
