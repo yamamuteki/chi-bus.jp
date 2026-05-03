@@ -21,6 +21,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ユーザーは手元で `git diff` を全件レビューしている。**Claude は勝手に `git add` / `commit` / `push` / ブランチ作成 / PR 作成をしない**。
 - ファイル編集自体は通常通り行ってよい。git に反映する操作のみ、明示的な依頼があってから実行する。
 
+### コミットメッセージ・PR の言語ルール
+
+- **件名（subject / title）は英語、本文（body / description）は日本語**で書く。コミットメッセージも PR も同じルール。
+- 件名は GitHub の一覧画面で読まれるため英語で簡潔に（命令形・先頭大文字、過去のコミット履歴のスタイルを踏襲）。本文は日本語で背景・意図・影響範囲を丁寧に説明する。
+
 ## プロジェクト概要
 
 千葉・東京・神奈川・埼玉（および茨城・栃木・群馬の一部）を対象とした、バス停と路線情報を提供する Web サービス（[https://www.chi-bus.jp](https://www.chi-bus.jp)）。Rails 5.0 / Ruby 2.6.10。フロントは CoffeeScript + SCSS、Bootstrap (`bootstrap-sass`) + jQuery + Turbolinks 構成。地図表示は `gmaps4rails`。
