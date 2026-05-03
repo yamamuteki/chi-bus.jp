@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    entrypoint: [ bin/entry ]
+    platform: linux/arm64
+    command: rails server -p 3000 -b '0.0.0.0'
+    stdin_open: true
+    volumes:
+      - "./:/usr/src/app"
+    ports:
+      - "3000:3000"
+    environment:
+      - "RAILS_DATABASE_HOST=db"
+      - "RAILS_DATABASE_PORT=5432"
+      - "RAILS_DATABASE_USER=postgres"
+      - "RAILS_DATABASE_PASSWORD=postgres"
+      - "SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub"
+      # spring file watcher may fail on ARM64 arch Macbook. If so, uncomment this line.
+      # - "DISABLE_SPRING=true"
+    links:
+      - db
+      - selenium
+
+  selenium:
+    image: seleniarm/standalone-chromium:latest
+    ports:
+      - "4444:4444"
+
+  db:
+    image: postgres:15
+    platform: linux/arm64
+    ports:
+      - "5432:5432"
+    environment:
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
+    driver: local
