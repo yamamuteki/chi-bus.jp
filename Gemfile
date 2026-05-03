@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
-ruby '~> 2.5.0'
+ruby '~> 2.6.10'
 
 git_source(:github) do |repo_name|
   repo_name = "#{repo_name}/#{repo_name}" unless repo_name.include?('/')
@@ -74,4 +74,8 @@ gem 'newrelic_rpm'
 gem 'coveralls', require: false
 gem 'rails-erd', groups: [:development, :test]
 gem 'simplify_rb'
+
+# Pin native gems to versions that support Ruby 2.6 + arm64-darwin
+gem 'ffi', '~> 1.16.3'
+gem 'nio4r', '~> 2.5.9'
 
