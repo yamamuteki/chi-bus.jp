@@ -1,8 +1,8 @@
 namespace :geocode do
-  desc 'Generate geocording data'
+  desc "Generate geocording data"
   task generate: :environment do
-    query = BusStop.where(formatted_address: nil);
-    progress = ProgressBar.create(title: "Generate", total: query.count, format: '%t: %J%% |%B|')
+    query = BusStop.where(formatted_address: nil)
+    progress = ProgressBar.create(title: "Generate", total: query.count, format: "%t: %J%% |%B|")
     query.find_each.each do |bus_stop|
       bus_stop.reverse_geocode
       bus_stop.save!
@@ -10,10 +10,10 @@ namespace :geocode do
     end
   end
 
-  desc 'Dump geocording data'
+  desc "Dump geocording data"
   task dump: :environment do
-    progress = ProgressBar.create(title: "Dump", total: BusStop.count, format: '%t: %J%% |%B|')
-    File.write('db/geocording_data.json', JSON.pretty_generate(
+    progress = ProgressBar.create(title: "Dump", total: BusStop.count, format: "%t: %J%% |%B|")
+    File.write("db/geocording_data.json", JSON.pretty_generate(
       BusStop.find_each.map do |bus_stop|
         progress.increment
         {
@@ -26,17 +26,17 @@ namespace :geocode do
     ))
   end
 
-  desc 'Restore geocording data'
+  desc "Restore geocording data"
   task restore: :environment do
-    records = JSON.parse(File.read('db/geocording_data.json'))
-    progress = ProgressBar.create(title: "Restore", total: records.count, format: '%t: %J%% |%B|')
+    records = JSON.parse(File.read("db/geocording_data.json"))
+    progress = ProgressBar.create(title: "Restore", total: records.count, format: "%t: %J%% |%B|")
     ActiveRecord::Base.transaction do
       records.each do |record|
-        bus_stop = BusStop.find record['bus_stop_id']
+        bus_stop = BusStop.find record["bus_stop_id"]
         bus_stop.update(
-          postal_code: record['postal_code'],
-          city: record['city'],
-          formatted_address: record['formatted_address']
+          postal_code: record["postal_code"],
+          city: record["city"],
+          formatted_address: record["formatted_address"]
         )
         progress.increment
       end

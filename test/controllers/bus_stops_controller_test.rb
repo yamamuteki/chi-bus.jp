@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class BusStopsControllerTest < ActionController::TestCase
   test "should get index with no query" do
@@ -8,7 +8,7 @@ class BusStopsControllerTest < ActionController::TestCase
   end
 
   test "should get index with bus stop query and hits" do
-    get :index, params: { q: 'Stop' }
+    get :index, params: { q: "Stop" }
     assert_response :success
     bus_stops = assigns(:bus_stops)
     assert bus_stops
@@ -17,13 +17,13 @@ class BusStopsControllerTest < ActionController::TestCase
 
   test "should get index with place query and no hits" do
     instance_mock = Minitest::Mock.new
-    instance_mock.expect :spots_by_query, [], [String], lat: Float, lng: Float, radius: Integer, language: String
+    instance_mock.expect :spots_by_query, [], [ String ], lat: Float, lng: Float, radius: Integer, language: String
     class_mock = Minitest::Mock.new
-    class_mock.expect :new, instance_mock, [String]
+    class_mock.expect :new, instance_mock, [ String ]
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
 
-    get :index, params: { q: 'no hits' }
+    get :index, params: { q: "no hits" }
     assert_response :success
     bus_stops = assigns(:bus_stops)
     assert bus_stops
@@ -32,21 +32,21 @@ class BusStopsControllerTest < ActionController::TestCase
 
   test "should get index with place query and hits" do
     spot = nil
-    def spot.place_id; 'place_id' end
-    def spot.name; 'name' end
+    def spot.place_id; "place_id" end
+    def spot.name; "name" end
     def spot.lat; 1.5 end
     def spot.lng; 2.5 end
-    def spot.formatted_address; 'formatted_address' end
-    def spot.place_id; 'place_id' end
+    def spot.formatted_address; "formatted_address" end
+    def spot.place_id; "place_id" end
 
     instance_mock = Minitest::Mock.new
-    instance_mock.expect :spots_by_query, [spot], [String], lat: Float, lng: Float, radius: Integer, language: String
+    instance_mock.expect :spots_by_query, [ spot ], [ String ], lat: Float, lng: Float, radius: Integer, language: String
     class_mock = Minitest::Mock.new
-    class_mock.expect :new, instance_mock, [String]
+    class_mock.expect :new, instance_mock, [ String ]
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
 
-    get :index, params: { q: 'hits' }
+    get :index, params: { q: "hits" }
     assert_response :success
     bus_stops = assigns(:bus_stops)
     assert bus_stops
@@ -55,7 +55,7 @@ class BusStopsControllerTest < ActionController::TestCase
   end
 
   test "should get index with position" do
-    get :index, params: { position: '40.7143528,-74.0059731' }
+    get :index, params: { position: "40.7143528,-74.0059731" }
     assert_response :success
     assert assigns(:bus_stops)
   end
@@ -64,13 +64,13 @@ class BusStopsControllerTest < ActionController::TestCase
     Geocoder::Lookup::Test.add_stub(
       "1.5,1.5", [
         {
-          'latitude'     => 40.7143528,
-          'longitude'    => -74.0059731,
-          'address'      => 'New York, NY, USA',
-          'state'        => 'New York',
-          'state_code'   => 'NY',
-          'country'      => 'United States',
-          'country_code' => 'US'
+          "latitude"     => 40.7143528,
+          "longitude"    => -74.0059731,
+          "address"      => "New York, NY, USA",
+          "state"        => "New York",
+          "state_code"   => "NY",
+          "country"      => "United States",
+          "country_code" => "US"
         }
       ]
     )

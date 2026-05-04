@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class BusRoutesControllerTest < ActionController::TestCase
   test "should get show" do
