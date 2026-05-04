@@ -8,18 +8,18 @@
 
 require 'nokogiri'
 
-def load_bus_route_track xml_path, doc
+def load_bus_route_track(xml_path, doc)
   progress = ProgressBar.create(title: "BusRouteTrack", total: doc.css('Curve').count, format: '%t: %J%% |%B|')
   doc.css('Curve').each do |node|
     gml_id = node['id']
     coordinates = node.at('posList').text.strip.each_line.map { |line| { x: line.split[0].to_f, y: line.split[1].to_f } }
-    simplified_coordinates = SimplifyRb::Simplifier.new.process(coordinates, 0.0001).map { |c| [c[:x], c[:y]] }
+    simplified_coordinates = SimplifyRb::Simplifier.new.process(coordinates, 0.0001).map { |c| [ c[:x], c[:y] ] }
     BusRouteTrack.create(gml_id: "#{xml_path}/#{gml_id}", coordinates: simplified_coordinates)
     progress.increment
   end
 end
 
-def load_bus_routes xml_path
+def load_bus_routes(xml_path)
   doc = Nokogiri::XML(open(xml_path))
   doc.remove_namespaces!
 
@@ -49,7 +49,7 @@ def load_bus_routes xml_path
   end
 end
 
-def load_bus_stops xml_path, prefecture
+def load_bus_stops(xml_path, prefecture)
   doc = Nokogiri::XML(open(xml_path))
   doc.remove_namespaces!
 

@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class BusRouteBusStopTest < ActiveSupport::TestCase
   test "should new" do

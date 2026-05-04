@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class BusRouteTrackTest < ActiveSupport::TestCase
   test "should new" do
@@ -16,11 +16,11 @@ class BusRouteTrackTest < ActiveSupport::TestCase
     bus_route_track = BusRouteTrack.new
 
     bus_route_track.coordinates = []
-    assert_equal '[]', bus_route_track.coordinates.inspect
+    assert_equal "[]", bus_route_track.coordinates.inspect
     assert_not_equal '"[]"', bus_route_track.coordinates.inspect
 
     bus_route_track.gml_id = []
     assert_equal '"[]"', bus_route_track.gml_id.inspect
-    assert_not_equal '[]', bus_route_track.gml_id.inspect
+    assert_not_equal "[]", bus_route_track.gml_id.inspect
   end
 end
