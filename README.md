@@ -32,12 +32,24 @@
 docker compose run --rm app rails test
 ```
 
-## Docker でのデータ投入（重い処理）
+## Docker でのデータ投入
 
-`db/seeds.rb` は国土交通省「国土数値情報」の XML から 7 都道府県分のバス停・路線データを構築します。極めて時間がかかるため、必要なときのみ実行してください。
+バス停・路線データは `db/data/*.csv` として git 管理されており、PostgreSQL の `COPY` 経由で投入します。約 1 分以内で完了します。
 
 ```
-docker compose run --rm app rails db:seed
+docker compose run --rm app bin/rails data:load
+```
+
+`db/seeds.rb` は二重取り込みガードのみで、データ未投入なら自動的に `data:load` を呼びます。すでにデータが入っていればスキップします。
+
+```
+docker compose run --rm app bin/rails db:seed
+```
+
+国土交通省「国土数値情報」の XML を最新版に差し替えてデータを再生成したい場合は `data:generate` で `db/data/*.csv` を更新します（重い処理、ローカルで実行して結果を git にコミット）。
+
+```
+docker compose run --rm app bin/rails data:generate
 ```
 
 ## Docker での ERD 生成

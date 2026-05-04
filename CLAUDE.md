@@ -52,7 +52,7 @@ docker-compose run --rm app bin/brakeman                   # security scan
 
 CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_js / test の 4 ジョブ構成で、`master` / `develop` への push と全 PR でトリガー。
 
-**`bin/setup` は使わない方が安全**。`bin/setup` は内部で `bin/rails db:setup` を実行し、`db/seeds.rb` 経由で 7 都道府県分の国土数値情報 XML を全パースする極めて重い処理を起動する。新規環境では `bin/rails db:migrate` で空 DB を作るか、シードまで欲しい場合のみ意識的に `bin/rails db:seed` を実行する。
+新規環境では `bin/rails db:seed` でデータが未投入なら自動的に `data:load` が走り、`db/data/*.csv` から PostgreSQL の `COPY` で 1 分以内に投入される。
 
 ## アーキテクチャ
 
@@ -78,20 +78,22 @@ CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_
 
 ### データ構築パイプライン
 
-`db/seeds.rb` は **国土交通省のオープンデータ「国土数値情報」** の XML から全データを構築する：
+XML + JSON のソースから `db/data/*.csv` を生成し、CSV を PostgreSQL の `COPY FROM STDIN` で投入する 2 段構成。
 
-- `db/N07-11_*.xml` — バス路線（`BusRoute`, `BusRouteTrack`）
-- `db/P11-10_*-jgd-g.xml` — バス停（`BusStop`、`BusRoute` との関連付け）
+ソース：
 
-ファイル名末尾 2 桁は JIS 都道府県コード（08〜14 = 茨城〜神奈川）。利用にあたっては国土数値情報ダウンロードサービスの利用規約に従うこと。
+- `db/N07-11_*.xml` — バス路線（**国土交通省「国土数値情報」**、ファイル名末尾 2 桁は JIS 都道府県コード、08〜14 = 茨城〜神奈川）
+- `db/P11-10_*-jgd-g.xml` — バス停
+- `db/bus_stop_number.json` / `db/geocording_data.json` / `db/keywords.json` — 派生データ（路線内停留所順序、逆ジオコーディング結果、kakasi 変換キーワード）の永続化キャッシュ
 
-シード末尾で 3 つの `restore` タスクを呼び、JSON から派生データを書き戻す：
+利用にあたっては国土数値情報ダウンロードサービスの利用規約に従うこと。
 
-1. `bus_stop_number:restore` — 路線内での停留所順序（`db/bus_stop_number.json`）
-2. `geocode:restore` — 逆ジオコーディング結果（`db/geocording_data.json`）
-3. `keyword:restore` — kakasi 変換した検索キーワード（`db/keywords.json`）
+タスク：
 
-各タスクは `generate`（外部 API・kakasi・空間計算など重い処理）→ `dump`（JSON に書き出し）→ `restore`（JSON から DB へ）の 3 段構成。**通常のセットアップ・CI では restore のみで完結し、generate は呼ばない**。`bus_stop_number:generate` は再生成すると順序が変わりうるため、運用上は JSON からの restore が原則。
+- `data:generate` — XML をパースし、3 つの JSON をマージして `db/data/*.csv` を出力する。重い処理なのでローカルで実行し、結果を git にコミットして運用する。最新の国土数値情報 XML に差し替えたいときに走らせる。
+- `data:load` — `db/data/*.csv` を `COPY FROM STDIN` で DB に流し込む。Heroku でも実行可能で約 1 分。`db/seeds.rb` のガード経由で `bin/rails db:seed` から呼ばれるルートと、直接 `bin/rails data:load` で呼ぶルートの両方がある。
+
+`bus_stop_number:generate` / `geocode:generate` / `keyword:generate`（および対応する `dump` / `restore`）は既存の rake task。各タスクは `generate`（外部 API・kakasi・空間計算など重い処理）→ `dump`（JSON に書き出し）の 2 段で、結果は `db/*.json` に永続化されている。**通常のセットアップ・CI では generate を呼ぶ必要はない**（CSV に統合済み）。`bus_stop_number:generate` は再生成すると順序が変わりうるため、運用上は既存 JSON を尊重する原則。
 
 ### テスト
 
