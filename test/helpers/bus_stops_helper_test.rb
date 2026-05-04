@@ -10,7 +10,7 @@ class BusStopsHelperTest < ActionView::TestCase
   end
 
   test "should bus_stop_or_place_path return position" do
-    spot = MiniTest::Mock.new
+    spot = Minitest::Mock.new
     spot.expect :lat, 1.0
     spot.expect :lng, 2.0
     place = Place.new(spot)
@@ -25,7 +25,7 @@ class BusStopsHelperTest < ActionView::TestCase
   end
 
   test "should bus_stop_badge return around string" do
-    spot = MiniTest::Mock.new
+    spot = Minitest::Mock.new
     place = Place.new(spot)
     assert_equal '周辺', bus_stop_badge(place)
   end

@@ -74,7 +74,7 @@ class ApplicationHelperTest < ActionView::TestCase
   end
 
   test "should gravatar_for return html" do
-    render text: gravatar_for('test@exsample.com', 200)
+    render html: gravatar_for('test@exsample.com', 200)
     assert_select 'img[src="https://secure.gravatar.com/avatar/a90bd84d6878b3b19e23d2aa052935af?s=200"]'
     assert_select 'img[class="gravatar"]'
   end
