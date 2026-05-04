@@ -3,7 +3,7 @@ class BusStopsController < ApplicationController
     if params[:q] then
       @bus_stops = BusStop.preload(:bus_routes).where('lower(keyword) like lower(?)', "%#{params[:q]}%").order('name, latitude DESC').limit(100)
       if @bus_stops.empty?
-        client = GooglePlaces::Client.new(Rails.application.secrets.google_api_key)
+        client = GooglePlaces::Client.new(ENV["GOOGLE_API_KEY"])
         spots = Rails.cache.fetch(params[:q]) do
           # The maximum allowed radius is 50,000 meters in Google Places API Web Service
           # 千葉県庁@35.6049233,140.1208483

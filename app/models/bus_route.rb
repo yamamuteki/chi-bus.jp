@@ -3,7 +3,7 @@ class BusRoute < ApplicationRecord
   has_many :bus_route_bus_stops, -> { order(:bus_stop_number) }
   has_many :bus_stops, through: :bus_route_bus_stops
 
-  enum bus_type: { private_bus: 1, public_bus: 2, community_bus: 3, demand_bus: 4, other: 5 }
+  enum :bus_type, { private_bus: 1, public_bus: 2, community_bus: 3, demand_bus: 4, other: 5 }
 
   BUS_TYPE_LABELS = {
     private_bus: "路線バス（民間）",
