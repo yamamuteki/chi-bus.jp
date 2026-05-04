@@ -7,7 +7,7 @@ class PlaceTest < ActiveSupport::TestCase
   end
 
   test "should have attributes" do
-    spot = MiniTest::Mock.new
+    spot = Minitest::Mock.new
     spot.expect :place_id, 'place_id'
     spot.expect :name, 'name'
     spot.expect :lat, 1.5

@@ -7,7 +7,7 @@ git_source(:github) do |repo_name|
 end
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 5.0.7'
+gem 'rails', '~> 5.1.7'
 # PostgreSQL を全環境で使用
 gem 'pg', '~> 1.2'
 # Use Puma as the app server
@@ -73,8 +73,4 @@ gem 'newrelic_rpm'
 gem 'coveralls', require: false
 gem 'rails-erd', groups: [:development, :test]
 gem 'simplify_rb'
-
-# Pin native gems to versions that support Ruby 2.6 + arm64-darwin
-gem 'ffi', '~> 1.16.3'
-gem 'nio4r', '~> 2.5.9'
 

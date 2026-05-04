@@ -16,9 +16,9 @@ class BusStopsControllerTest < ActionController::TestCase
   end
 
   test "should get index with place query and no hits" do
-    instance_mock = MiniTest::Mock.new
-    instance_mock.expect :spots_by_query, [], [String, Hash]
-    class_mock = MiniTest::Mock.new
+    instance_mock = Minitest::Mock.new
+    instance_mock.expect :spots_by_query, [], [String], lat: Float, lng: Float, radius: Integer, language: String
+    class_mock = Minitest::Mock.new
     class_mock.expect :new, instance_mock, [String]
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
@@ -39,9 +39,9 @@ class BusStopsControllerTest < ActionController::TestCase
     def spot.formatted_address; 'formatted_address' end
     def spot.place_id; 'place_id' end
 
-    instance_mock = MiniTest::Mock.new
-    instance_mock.expect :spots_by_query, [spot], [String, Hash]
-    class_mock = MiniTest::Mock.new
+    instance_mock = Minitest::Mock.new
+    instance_mock.expect :spots_by_query, [spot], [String], lat: Float, lng: Float, radius: Integer, language: String
+    class_mock = Minitest::Mock.new
     class_mock.expect :new, instance_mock, [String]
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
