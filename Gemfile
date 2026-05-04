@@ -1,83 +1,96 @@
-source 'https://rubygems.org'
-ruby '~> 3.0.7'
+source "https://rubygems.org"
+ruby "~> 3.4.9"
 
-git_source(:github) do |repo_name|
-  repo_name = "#{repo_name}/#{repo_name}" unless repo_name.include?('/')
-  "https://github.com/#{repo_name}.git"
-end
-
-# Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 6.1.7'
+# Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
+gem "rails", "~> 8.1.3"
+# The modern asset pipeline for Rails [https://github.com/rails/propshaft]
+gem "propshaft"
 # PostgreSQL を全環境で使用
-gem 'pg', '~> 1.2'
-# Use Puma as the app server
-gem 'puma', '~> 3.0'
-# Use SCSS for stylesheets
-gem 'sass-rails', '>= 6'
-# Use Uglifier as compressor for JavaScript assets
-gem 'uglifier', '>= 1.3.0'
-# Use CoffeeScript for .coffee assets and views
-gem 'coffee-rails', '~> 4.2'
-# See https://github.com/rails/execjs#readme for more supported runtimes
-# gem 'therubyracer', platforms: :ruby
+gem "pg", "~> 1.2"
+# Use the Puma web server [https://github.com/puma/puma]
+gem "puma", ">= 5.0"
+# Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
+gem "importmap-rails"
+# Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
+gem "turbo-rails"
+# Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
+gem "stimulus-rails"
+# Build JSON APIs with ease [https://github.com/rails/jbuilder]
+gem "jbuilder"
 
-# Use jquery as the JavaScript library
-gem 'jquery-rails'
-# Turbolinks makes navigating your web application faster. Read more: https://github.com/turbolinks/turbolinks
-gem 'turbolinks', '~> 5'
-# Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
-gem 'jbuilder', '~> 2.5'
-# Use Redis adapter to run Action Cable in production
-# gem 'redis', '~> 3.0'
-# Use ActiveModel has_secure_password
-# gem 'bcrypt', '~> 3.1.7'
+# Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
+# gem "bcrypt", "~> 3.1.7"
+
+# Windows does not include zoneinfo files, so bundle the tzinfo-data gem
+gem "tzinfo-data", platforms: %i[ windows jruby ]
+
+# Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
+gem "solid_cache"
+gem "solid_queue"
+gem "solid_cable"
 
 # Reduces boot times through caching; required in config/boot.rb
-gem 'bootsnap', '>= 1.1.0', require: false
+gem "bootsnap", require: false
 
-# Use Capistrano for deployment
-# gem 'capistrano-rails', group: :development
+# Use Sass to process CSS
+gem "sassc-rails"
+
+# Use terser as compressor for JavaScript assets
+gem "terser"
+# Use CoffeeScript for .coffee assets and views
+gem "coffee-rails"
+# Use jquery as the JavaScript library
+gem "jquery-rails"
+
+# Deploy this application anywhere as a Docker container [https://kamal-deploy.org]
+gem "kamal", require: false
+
+# Add HTTP asset caching/compression and X-Sendfile acceleration to Puma [https://github.com/basecamp/thruster/]
+gem "thruster", require: false
+
+# Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
+gem "image_processing", "~> 1.2"
 
 group :development, :test do
-  # Call 'byebug' anywhere in the code to stop execution and get a debugger console
-  gem 'byebug', platform: :mri
+  # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
+  gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
+
+  # Audits gems for known security defects (use config/bundler-audit.yml to ignore issues)
+  gem "bundler-audit", require: false
+
+  # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
+  gem "brakeman", require: false
+
+  # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
+  gem "rubocop-rails-omakase", require: false
 end
 
 group :development do
-  # Access an IRB console on exception pages or by using <%= console %> anywhere in the code.
-  gem 'web-console'
-  gem 'listen', '~> 3.0.5'
-  # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
-  gem 'spring'
-  gem 'spring-watcher-listen', '~> 2.0.0'
+  # Use console on exceptions pages [https://github.com/rails/web-console]
+  gem "web-console"
 end
 
-# Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem 'tzinfo-data', platforms: [:mingw, :mswin, :x64_mingw, :jruby]
+group :test do
+  # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
+  gem "capybara"
+  gem "selenium-webdriver"
+  # minitest-rails pulls minitest ~> 5.x, which still bundles Minitest::Mock
+  gem "minitest-rails"
+end
 
-# Rails update 4.2 to 5.0
-gem 'rails-controller-testing'
-
-gem 'bootstrap-sass'
-gem 'ruby-progressbar'
-gem 'geocoder'
-gem 'google-analytics-rails'
-gem 'gmaps4rails'
-# gem 'quiet_assets', group: :development
-gem 'google_places'
-gem 'dotenv-rails'
-gem 'simplecov', require: false, group: :test
-gem 'minitest-reporters', require: false, group: :test
+# Project-specific gems
+gem "bootstrap-sass"
+gem "dotenv-rails"
+gem "geocoder"
+gem "google_places"
+gem "gmaps4rails"
+gem "google-analytics-rails"
+gem "newrelic_rpm"
 gem "sitemap_generator"
-gem 'redis', '~> 4.0'
-gem 'cache_clear_rails'
-gem 'newrelic_rpm'
-# gem 'kakasi_parser', groups: [:development, :test]
-gem 'rails-erd', groups: [:development, :test]
-gem 'simplify_rb'
-
-# Pin until Ruby is upgraded to 3.2+ (zeitwerk 2.7+ requires Ruby >= 3.2)
-gem 'zeitwerk', '~> 2.6.0'
-# Pin until Ruby is upgraded to 3.1+ (minitest 5.26.2+ requires Ruby >= 3.1)
-gem 'minitest', '~> 5.25.0'
-
+gem "cache_clear_rails"
+gem "ruby-progressbar"
+gem "simplify_rb"
+gem "simplecov", require: false, group: :test
+gem "minitest-reporters", require: false, group: :test
+gem "rails-erd", groups: [:development, :test]
+gem "rails-controller-testing"

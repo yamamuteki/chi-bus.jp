@@ -23,16 +23,16 @@
           <% bus_route_count = BusRouteBusStop.joins(:bus_stop).group(:prefecture).distinct.count(:bus_route_id) %>
           <% bus_stop_count.each do |key, value| %>
             <tr>
-              <td><%= "#{key}" %></td>
-              <td><%= "#{value.to_s(:delimited)}" %></td>
-              <td><%= "#{bus_route_count[key].to_i.to_s(:delimited)}" %></td>
+              <td><%= key %></td>
+              <td><%= number_with_delimiter(value) %></td>
+              <td><%= number_with_delimiter(bus_route_count[key].to_i) %></td>
             </tr>
           <% end %>
           <tfoot>
             <tr>
               <th class="text-right">合計</th>
-              <th class="text-right"><%= "#{BusStop.count.to_s(:delimited)}" %></th>
-              <th class="text-right"><%= "#{BusRoute.count.to_s(:delimited)}" %></th>
+              <th class="text-right"><%= number_with_delimiter(BusStop.count) %></th>
+              <th class="text-right"><%= number_with_delimiter(BusRoute.count) %></th>
             </tr>
           </tfoot>
         </tbody>
