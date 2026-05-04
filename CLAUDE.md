@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 本番デプロイ
 
 - 本番環境は **Heroku**、`master` ブランチへのマージで **オートデプロイ**される。
+- リリース時の DB 操作は `Procfile` の `release` フェーズで `bin/rails db:prepare` が走る（migration、初回 seed まで自動化）。
 - したがって `develop` → `master` の PR マージは「リリース操作そのもの」。マイグレーションの有無、`ENV` 追加、外部 API 呼び出しの増加などの影響範囲を確認したうえで、ユーザーが手動マージする。
 
 ### git 操作の確認ルール
