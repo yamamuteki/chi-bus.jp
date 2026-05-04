@@ -93,4 +93,3 @@ gem "simplify_rb"
 gem "simplecov", require: false, group: :test
 gem "minitest-reporters", require: false, group: :test
 gem "rails-erd", groups: [ :development, :test ]
-gem "rails-controller-testing"
