@@ -203,7 +203,12 @@ namespace :data do
         path = Rails.root.join("db/data/#{table}.csv")
         raise "Missing #{path}. Run 'rails data:generate' first." unless path.exist?
 
-        raw.copy_data("COPY #{table} FROM STDIN WITH CSV HEADER") do
+        # CSV のヘッダ行を読み、列順を COPY 文に明示する。
+        # COPY ... CSV HEADER はヘッダを読み飛ばすだけで列マッピングをしないため、
+        # CSV と DB の物理カラム順が異なる環境（schema:load 由来など）で壊れる。
+        columns = File.open(path, "r") { |f| f.readline.chomp.split(",") }
+
+        raw.copy_data("COPY #{table} (#{columns.join(', ')}) FROM STDIN WITH CSV HEADER") do
           File.open(path, "r") do |f|
             while (line = f.gets)
               raw.put_copy_data(line)
