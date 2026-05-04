@@ -28,29 +28,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-千葉・東京・神奈川・埼玉（および茨城・栃木・群馬の一部）を対象とした、バス停と路線情報を提供する Web サービス（[https://www.chi-bus.jp](https://www.chi-bus.jp)）。Rails 5.0 / Ruby 2.6.10。フロントは CoffeeScript + SCSS、Bootstrap (`bootstrap-sass`) + jQuery + Turbolinks 構成。地図表示は `gmaps4rails`。
+千葉・東京・神奈川・埼玉（および茨城・栃木・群馬の一部）を対象とした、バス停と路線情報を提供する Web サービス（[https://www.chi-bus.jp](https://www.chi-bus.jp)）。
 
 ## 開発環境
 
-- Ruby は `.ruby-version` の **2.6.10 固定**（Gemfile も `~> 2.6.10`）。
-- `.bundle/config` に `BUNDLE_WITHOUT: "production"` があるので、ローカルで `bundle install` すると `pg` などの production gem は入らない。
-- ネイティブ拡張は arm64-darwin × Ruby 2.6 のため `ffi ~> 1.16.3` / `nio4r ~> 2.5.9` にピン留めされている。Gemfile を弄るときはこの制約を壊さない。
+- Ruby のバージョンは `.ruby-version` で固定。
+- 全環境（development / test / production）で **PostgreSQL**。`docker-compose up` で app / db / selenium のコンテナが揃う。`Dockerfile.dev` が development 用、`Dockerfile`（rails new デフォルト）が production 用。
 - `kakasi_parser` は Gemfile でコメントアウト中。`keyword:generate`（後述）を走らせる場合のみ有効化が必要。`restore` 系は不要。
 
 ## よく使うコマンド
 
 ```bash
-bundle install                              # production グループは自動除外
-bin/rails db:migrate                        # マイグレーション
-bin/rails db:migrate RAILS_ENV=test         # テスト DB の準備（CI と同じ）
-bin/rails test                              # 全テスト（minitest）
-bin/rails test test/models/bus_stop_test.rb # 単一ファイル
-bin/rails test test/models/bus_stop_test.rb:10  # 特定行
-bin/rails server                            # 開発サーバー（Puma）
-bin/rails console
+docker-compose up -d                                       # 開発サーバー（Puma）を常駐起動
+docker-compose run --rm app bin/rails db:migrate
+docker-compose run --rm app bin/rails test                 # 全テスト
+docker-compose run --rm app bin/rails test test/models/bus_stop_test.rb:10
+docker-compose run --rm app bin/rails console
+docker-compose run --rm app bin/rubocop                    # lint（rubocop-rails-omakase）
+docker-compose run --rm app bin/brakeman                   # security scan
 ```
 
-CI（`.travis.yml`）は `db:migrate RAILS_ENV=test` → `bin/rails test`。Rubocop は `.rubocop.yml` で `LineLength: 120` のみ設定。
+短時間で完結する操作は `docker-compose run --rm app` で一時コンテナを使うほうが、終了タイミングが明確で常駐コンテナの状態にも干渉しない。Puma を立ち上げて手動確認したいときだけ `docker-compose up -d` を使う。
+
+CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_js / test の 4 ジョブ構成で、`master` / `develop` への push と全 PR でトリガー。
 
 **`bin/setup` は使わない方が安全**。`bin/setup` は内部で `bin/rails db:setup` を実行し、`db/seeds.rb` 経由で 7 都道府県分の国土数値情報 XML を全パースする極めて重い処理を起動する。新規環境では `bin/rails db:migrate` で空 DB を作るか、シードまで欲しい場合のみ意識的に `bin/rails db:seed` を実行する。
 
@@ -96,15 +96,14 @@ CI（`.travis.yml`）は `db:migrate RAILS_ENV=test` → `bin/rails test`。Rubo
 ### テスト
 
 - minitest。`test/test_helper.rb` で `fixtures :all` を有効化してあるので、`test/fixtures/*.yml` は全テストで自動的に読み込まれる。
-- カバレッジは SimpleCov + Coveralls で計測。テストレポートは `minitest-reporters` 経由。
+- controller テストは `ActionDispatch::IntegrationTest`（Rails の現行 generator デフォルト）。`assigns` は使えないので、HTML 構造の検証は `assert_select`、Mock の挙動確認は `Mock#verify` で行う。
 - **Google Places のモックは独特**。`test/controllers/bus_stops_controller_test.rb` では `GooglePlaces.send(:remove_const, :Client); GooglePlaces::Client = class_mock` でクラスごと差し替えている。新規テストでも同様のパターンを踏襲するのが無難。
-- Geocoder は `Geocoder::Lookup::Test.add_stub(...)` でレスポンスをスタブ可能。
+- Geocoder は `Geocoder::Lookup::Test.add_stub(...)` でレスポンスをスタブ可能。`test/test_helper.rb` で `Geocoder.configure(lookup: :test)` してテストモードに固定済み。
 
 ### キャッシュ
 
-- production は Redis（`config.cache_store = :redis_store, ENV["REDIS_URL"]`、`redis-rails` gem）。
-- development はデフォルト `:null_store`。`tmp/caching-dev.txt` を作ると `:memory_store` が有効化される。
-- ビュー側は `bus_stops/index.html.erb`、`bus_stops/show.html.erb` でフラグメントキャッシュを使用（`cache params[:q].to_s + params[:position].to_s` など）。development でキャッシュ挙動を再現するには上記の touch が必要。
+- production の `cache_store` は明示設定なし（Rails デフォルトの `:memory_store`、プロセスローカル）。dyno 間で共有したくなったら別途検討する。
+- ビュー側は `bus_stops/index.html.erb`、`bus_stops/show.html.erb` でフラグメントキャッシュを使用（`cache params[:q].to_s + params[:position].to_s` など）。development でキャッシュ挙動を再現するには `tmp/caching-dev.txt` を `touch` する必要がある。
 - Places API のレスポンスもコントローラ側で `Rails.cache.fetch(params[:q])` でキャッシュしている。
 
 ### ルーティング
@@ -113,17 +112,23 @@ CI（`.travis.yml`）は `db:migrate RAILS_ENV=test` → `bin/rails test`。Rubo
 
 ### データベース
 
-- development / test は SQLite3。
-- production は PostgreSQL（`pg` gem）だが、**`config/database.yml` の production セクションは SQLite のまま放置されている**。Heroku が `DATABASE_URL` 環境変数で設定をオーバーライドするため動作はするが、ローカルで production モードを再現したい場合は database.yml の修正が必要になる点に注意。
-- SQLite（dev/test）と PostgreSQL（prod）の挙動差に注意。`LIKE` は PostgreSQL では case-sensitive なので検索クエリは `lower(...) like lower(...)` で吸収している。型キャストや enum 周りでも差が出やすい。
+- 全環境で PostgreSQL。`config/database.yml` は `RAILS_DATABASE_*` 環境変数で接続先を切り替える形。Heroku では `DATABASE_URL` が優先されるためそちらが効く。
+- 検索クエリは `lower(...) like lower(...)` で大文字小文字を吸収（PostgreSQL の `LIKE` が case-sensitive のため）。
+
+### フロントエンド
+
+- アセットパイプラインは Sprockets と propshaft の併用。既存の SCSS / CoffeeScript / jQuery / Bootstrap-sass は Sprockets 経由、新規追加分は propshaft + importmap で扱える状態。
+- importmap の entrypoint は `main`（Sprockets の `application.js` と名前衝突しないよう変更済み）。
+- Hotwire 系の gem は導入済みだが既存ビューでは未利用。段階的に置き換える前提。
 
 ### 外部依存と認証情報
 
-- Google Places API / Google Geocoding API キー — `Rails.application.secrets.google_api_key`（`config/secrets.yml` 経由、`ENV["GOOGLE_API_KEY"]` から読み込み）。
+- Google Places / Geocoding API キー — `ENV["GOOGLE_API_KEY"]`。
 - **Google Maps JavaScript API キーは `app/views/layouts/application.html.erb` にハードコードされている**（修正候補）。
-- Google Analytics トラッカー ID（`UA-544999-5`）は `config/environments/production.rb` にハードコード。
-- New Relic（`newrelic_rpm`）、Coveralls、Code Climate に連携。
+- Google Analytics トラッカー ID は `config/environments/production.rb` にハードコード。
+- New Relic（`newrelic_rpm`）は production で有効。
 - `dotenv-rails` で `.env` を読み込み（`.env` は gitignore 済み）。
+- CI test job では `GOOGLE_API_KEY: dummy` を渡してモック前提のテストを通している。
 
 ### 本番環境の追加設定
 
