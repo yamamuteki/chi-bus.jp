@@ -9,7 +9,7 @@ module BusStopsHelper
 
   def bus_stop_badge(bus_stop)
     if bus_stop.is_a? Place then
-      '周辺'
+      "周辺"
     else
       bus_stop.bus_routes.size
     end

@@ -1,9 +1,8 @@
-require 'test_helper'
+require "test_helper"
 
-class AboutControllerTest < ActionController::TestCase
+class AboutControllerTest < ActionDispatch::IntegrationTest
   test "should get index" do
-    get :index
+    get about_path
     assert_response :success
   end
-
 end

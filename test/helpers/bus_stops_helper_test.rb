@@ -1,4 +1,4 @@
-require 'test_helper'
+require "test_helper"
 
 class BusStopsHelperTest < ActionView::TestCase
   include BusStopsHelper
@@ -10,11 +10,11 @@ class BusStopsHelperTest < ActionView::TestCase
   end
 
   test "should bus_stop_or_place_path return position" do
-    spot = MiniTest::Mock.new
+    spot = Minitest::Mock.new
     spot.expect :lat, 1.0
     spot.expect :lng, 2.0
     place = Place.new(spot)
-    assert_equal bus_stops_path + '?position=1.0,2.0', bus_stop_or_place_path(place)
+    assert_equal bus_stops_path + "?position=1.0,2.0", bus_stop_or_place_path(place)
   end
 
   test "should bus_stop_badge return bus routes count" do
@@ -25,8 +25,8 @@ class BusStopsHelperTest < ActionView::TestCase
   end
 
   test "should bus_stop_badge return around string" do
-    spot = MiniTest::Mock.new
+    spot = Minitest::Mock.new
     place = Place.new(spot)
-    assert_equal '周辺', bus_stop_badge(place)
+    assert_equal "周辺", bus_stop_badge(place)
   end
 end
