@@ -128,9 +128,10 @@ GEM
       net-smtp
     marcel (1.1.0)
     method_source (1.1.0)
-    mime-types (3.2.2)
-      mime-types-data (~> 3.2015)
-    mime-types-data (3.2018.0812)
+    mime-types (3.7.0)
+      logger
+      mime-types-data (~> 3.2025, >= 3.2025.0507)
+    mime-types-data (3.2026.0414)
     mini_mime (1.1.5)
     mini_portile2 (2.8.9)
     minitest (5.25.5)
@@ -153,7 +154,7 @@ GEM
       net-protocol
     newrelic_rpm (6.1.0.352)
     nio4r (2.7.5)
-    nokogiri (1.15.7)
+    nokogiri (1.17.2)
       mini_portile2 (~> 2.8.2)
       racc (~> 1.4)
     pg (1.5.9)
@@ -177,10 +178,10 @@ GEM
       bundler (>= 1.15.0)
       railties (= 6.1.7.10)
       sprockets-rails (>= 2.0.0)
-    rails-controller-testing (1.0.4)
-      actionpack (>= 5.0.1.x)
-      actionview (>= 5.0.1.x)
-      activesupport (>= 5.0.1.x)
+    rails-controller-testing (1.0.5)
+      actionpack (>= 5.0.1.rc1)
+      actionview (>= 5.0.1.rc1)
+      activesupport (>= 5.0.1.rc1)
     rails-dom-testing (2.3.0)
       activesupport (>= 5.0.0)
       minitest
@@ -269,7 +270,6 @@ DEPENDENCIES
   cache_clear_rails
   coffee-rails (~> 4.2)
   dotenv-rails
-  ffi (~> 1.16.0)
   geocoder
   gmaps4rails
   google-analytics-rails
@@ -280,7 +280,6 @@ DEPENDENCIES
   minitest (~> 5.25.0)
   minitest-reporters
   newrelic_rpm
-  nokogiri (~> 1.15.0)
   pg (~> 1.2)
   puma (~> 3.0)
   rails (~> 6.1.7)
@@ -301,7 +300,7 @@ DEPENDENCIES
   zeitwerk (~> 2.6.0)
 
 RUBY VERSION
-   ruby 2.7.8p225
+   ruby 3.0.7p220
 
 BUNDLED WITH
    2.4.22

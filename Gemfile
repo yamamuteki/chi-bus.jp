@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
-ruby '~> 2.7.8'
+ruby '~> 3.0.7'
 
 git_source(:github) do |repo_name|
   repo_name = "#{repo_name}/#{repo_name}" unless repo_name.include?('/')
@@ -80,8 +80,4 @@ gem 'simplify_rb'
 gem 'zeitwerk', '~> 2.6.0'
 # Pin until Ruby is upgraded to 3.1+ (minitest 5.26.2+ requires Ruby >= 3.1)
 gem 'minitest', '~> 5.25.0'
-# Pin until Ruby is upgraded to 3.0+ (nokogiri 1.16+ requires Ruby >= 3.0)
-gem 'nokogiri', '~> 1.15.0'
-# Pin until Ruby is upgraded to 3.0+ (ffi 1.17+ requires Ruby >= 3.0)
-gem 'ffi', '~> 1.16.0'
 
