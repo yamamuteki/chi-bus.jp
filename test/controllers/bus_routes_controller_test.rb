@@ -1,9 +1,8 @@
 require "test_helper"
 
-class BusRoutesControllerTest < ActionController::TestCase
+class BusRoutesControllerTest < ActionDispatch::IntegrationTest
   test "should get show" do
-    get :show, params: { id: bus_routes(:one) }
+    get bus_route_path(bus_routes(:one))
     assert_response :success
-    assert assigns(:bus_route)
   end
 end

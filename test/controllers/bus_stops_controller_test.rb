@@ -1,18 +1,16 @@
 require "test_helper"
 
-class BusStopsControllerTest < ActionController::TestCase
+class BusStopsControllerTest < ActionDispatch::IntegrationTest
   test "should get index with no query" do
-    get :index
+    get bus_stops_path
     assert_response :success
-    assert assigns(:bus_stops)
+    assert_select "p", text: "検索結果はありません。"
   end
 
   test "should get index with bus stop query and hits" do
-    get :index, params: { q: "Stop" }
+    get bus_stops_path, params: { q: "Stop" }
     assert_response :success
-    bus_stops = assigns(:bus_stops)
-    assert bus_stops
-    assert_equal 2, bus_stops.length
+    assert_select "a.list-group-item", count: 2
   end
 
   test "should get index with place query and no hits" do
@@ -23,11 +21,11 @@ class BusStopsControllerTest < ActionController::TestCase
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
 
-    get :index, params: { q: "no hits" }
+    get bus_stops_path, params: { q: "no hits" }
     assert_response :success
-    bus_stops = assigns(:bus_stops)
-    assert bus_stops
-    assert_equal 0, bus_stops.length
+    assert_select "p", text: "検索結果はありません。"
+    instance_mock.verify
+    class_mock.verify
   end
 
   test "should get index with place query and hits" do
@@ -46,18 +44,17 @@ class BusStopsControllerTest < ActionController::TestCase
     GooglePlaces.send(:remove_const, :Client)
     GooglePlaces::Client = class_mock
 
-    get :index, params: { q: "hits" }
+    get bus_stops_path, params: { q: "hits" }
     assert_response :success
-    bus_stops = assigns(:bus_stops)
-    assert bus_stops
-    assert_equal 1, bus_stops.length
-    assert_instance_of Place, bus_stops[0]
+    assert_select "a.list-group-item", count: 1
+    assert_select "div.badge", text: "周辺"
+    instance_mock.verify
+    class_mock.verify
   end
 
   test "should get index with position" do
-    get :index, params: { position: "40.7143528,-74.0059731" }
+    get bus_stops_path, params: { position: "40.7143528,-74.0059731" }
     assert_response :success
-    assert assigns(:bus_stops)
   end
 
   test "should get show" do
@@ -75,8 +72,7 @@ class BusStopsControllerTest < ActionController::TestCase
       ]
     )
 
-    get :show, params: { id: bus_stops(:one) }
+    get bus_stop_path(bus_stops(:one))
     assert_response :success
-    assert assigns(:bus_stop)
   end
 end
