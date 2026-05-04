@@ -136,6 +136,7 @@ GEM
       tzinfo
     execjs (2.10.1)
     ffi (1.17.4-aarch64-linux-gnu)
+    ffi (1.17.4-x86_64-linux-gnu)
     fugit (1.12.1)
       et-orbi (~> 1.4)
       raabro (~> 1.4)
@@ -234,12 +235,15 @@ GEM
     nio4r (2.7.5)
     nokogiri (1.19.3-aarch64-linux-gnu)
       racc (~> 1.4)
+    nokogiri (1.19.3-x86_64-linux-gnu)
+      racc (~> 1.4)
     ostruct (0.6.3)
     parallel (2.1.0)
     parser (3.3.11.1)
       ast (~> 2.4.1)
       racc
     pg (1.6.3-aarch64-linux)
+    pg (1.6.3-x86_64-linux)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -410,6 +414,7 @@ GEM
       execjs (>= 0.3.0, < 3)
     thor (1.5.0)
     thruster (0.1.20-aarch64-linux)
+    thruster (0.1.20-x86_64-linux)
     tilt (2.7.0)
     timeout (0.6.1)
     tsort (0.2.0)
@@ -438,6 +443,7 @@ GEM
 
 PLATFORMS
   aarch64-linux
+  x86_64-linux
 
 DEPENDENCIES
   bootsnap
