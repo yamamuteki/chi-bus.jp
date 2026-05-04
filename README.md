@@ -12,7 +12,6 @@
 - `RAILS_DATABASE_PORT`
 - `RAILS_DATABASE_USER`
 - `RAILS_DATABASE_PASSWORD`
-- `REDIS_URL` — production のキャッシュストア用
 - `SECRET_KEY_BASE` — production のみ
 - `RAILS_LOG_TO_STDOUT` — production で STDOUT にログ出力する場合に設定（Heroku 推奨）
 - `RAILS_SERVE_STATIC_FILES` — production で `public/` 配下を Rails から配信する場合に設定
@@ -62,10 +61,12 @@ docker compose run --rm app bundle exec erd
 
 本番環境は Heroku で、`master` ブランチへの push をトリガーにオートデプロイされます。`develop` で開発し、リリース時に `master` へマージしてください。
 
+`Procfile` の `release` フェーズで `bin/rails db:prepare` が走り、初回デプロイなら `db:create` + `db:schema:load` + `db:seed`（`db/seeds.rb` のガード経由で `data:load` が呼ばれて `db/data/*.csv` を `COPY` 投入）、2 回目以降なら `db:migrate` のみが実行されます。
+
 初回セットアップが必要な場合：
 
 1. Heroku アカウントを作成し、Heroku web console でアプリを作成
 2. `heroku login`
-3. Heroku Postgres / Heroku Data for Redis アドオンを追加
+3. Heroku Postgres アドオンを追加
 4. config vars に `GOOGLE_API_KEY`、`SECRET_KEY_BASE`、`RAILS_LOG_TO_STDOUT=enabled`、`RAILS_SERVE_STATIC_FILES=enabled` などを設定
 5. GitHub 連携を有効化して `master` ブランチの自動デプロイを ON
