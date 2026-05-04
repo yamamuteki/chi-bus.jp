@@ -7,13 +7,13 @@ git_source(:github) do |repo_name|
 end
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 5.2.8'
+gem 'rails', '~> 6.0.6'
 # PostgreSQL を全環境で使用
 gem 'pg', '~> 1.2'
 # Use Puma as the app server
 gem 'puma', '~> 3.0'
 # Use SCSS for stylesheets
-gem 'sass-rails', '~> 5.0'
+gem 'sass-rails', '>= 6'
 # Use Uglifier as compressor for JavaScript assets
 gem 'uglifier', '>= 1.3.0'
 # Use CoffeeScript for .coffee assets and views
@@ -69,11 +69,19 @@ gem 'dotenv-rails'
 gem 'simplecov', require: false, group: :test
 gem 'minitest-reporters', require: false, group: :test
 gem "sitemap_generator"
-gem "redis-rails"
+gem 'redis', '~> 4.0'
 gem 'cache_clear_rails'
 gem 'newrelic_rpm'
 # gem 'kakasi_parser', groups: [:development, :test]
-gem 'coveralls', require: false
 gem 'rails-erd', groups: [:development, :test]
 gem 'simplify_rb'
+
+# Pin until Ruby is upgraded to 3.2+ (zeitwerk 2.7+ requires Ruby >= 3.2)
+gem 'zeitwerk', '~> 2.6.0'
+# Pin until Ruby is upgraded to 3.1+ (minitest 5.26.2+ requires Ruby >= 3.1)
+gem 'minitest', '~> 5.25.0'
+# Pin until Ruby is upgraded to 3.0+ (nokogiri 1.16+ requires Ruby >= 3.0)
+gem 'nokogiri', '~> 1.15.0'
+# Pin until Ruby is upgraded to 3.0+ (ffi 1.17+ requires Ruby >= 3.0)
+gem 'ffi', '~> 1.16.0'
 
