@@ -61,7 +61,7 @@ docker compose run --rm app bundle exec erd
 
 本番環境は Heroku で、`master` ブランチへの push をトリガーにオートデプロイされます。`develop` で開発し、リリース時に `master` へマージしてください。
 
-DB マイグレーションとキャッシュクリアは buildpack 方式で行います。`gunpowderlabs/buildpack-ruby-rake-deploy-tasks` が `DEPLOY_TASKS` 環境変数に列挙した rake task を build phase で実行するため、出力は build log に流れて Heroku Activity / GitHub の Deployment 画面から確認できます。
+DB セットアップとキャッシュクリアは buildpack 方式で行います。`gunpowderlabs/buildpack-ruby-rake-deploy-tasks` が `DEPLOY_TASKS` 環境変数に列挙した rake task を build phase で実行するため、出力は build log に流れて Heroku Activity / GitHub の Deployment 画面から確認できます。`db:prepare` は fresh DB なら `schema:load` + `seed`（`db/seeds.rb` のガード経由で `data:load` が呼ばれて `db/data/*.csv` を `COPY` 投入）まで自動で走り、既存 DB では `migrate` のみ実行されます。
 
 初回セットアップが必要な場合：
 
@@ -80,8 +80,7 @@ DB マイグレーションとキャッシュクリアは buildpack 方式で行
    ```
    heroku buildpacks:set https://github.com/heroku/heroku-buildpack-ruby
    heroku buildpacks:add https://github.com/gunpowderlabs/buildpack-ruby-rake-deploy-tasks
-   heroku config:set DEPLOY_TASKS='db:migrate cache:clear'
+   heroku config:set DEPLOY_TASKS='db:prepare cache:clear'
    ```
 
 7. GitHub 連携を有効化して `master` ブランチの自動デプロイを ON
-8. 初回デプロイ後、データ投入が必要なら `heroku run bin/rails db:seed`（`data:load` 経由で `db/data/*.csv` が `COPY` 投入される）
