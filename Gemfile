@@ -91,4 +91,4 @@ gem "cache_clear_rails"
 gem "ruby-progressbar"
 gem "simplify_rb"
 gem "simplecov", require: false, group: :test
-gem "rails-erd", groups: [ :development, :test ]
+gem "rails-erd", group: :development
