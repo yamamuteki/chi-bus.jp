@@ -45,21 +45,41 @@ class BusStopTest < ActiveSupport::TestCase
     assert_equal "2", bus_stop.bus_routes[3].line_name
   end
 
+  test "should keyword search match by kanji, hiragana, katakana, and romaji" do
+    bus_stop = BusStop.create!(
+      name: "千葉駅",
+      latitude: 35.6049233,
+      longitude: 140.1208483,
+      keyword: "千葉駅 chibaeki ちばえき チバエキ"
+    )
+
+    # コントローラ側で使う SQL と同じ形（lower + like）で各表記が引けることを確認する。
+    [ "千葉", "chiba", "ちば", "チバ" ].each do |query|
+      results = BusStop.where("lower(keyword) like lower(?)", "%#{query}%")
+      assert_includes results, bus_stop, "expected query #{query.inspect} to match"
+    end
+  end
+
+  test "should near return bus stops ordered by distance" do
+    chibaeki = BusStop.create!(name: "千葉駅",     latitude: 35.6049233, longitude: 140.1208483)
+    kaihin   = BusStop.create!(name: "海浜幕張駅", latitude: 35.6489000, longitude: 140.0337000)
+
+    results = BusStop.near([ 35.6049233, 140.1208483 ], 50).to_a
+
+    assert_equal chibaeki, results.first
+    assert_includes results, kaihin
+  end
+
   test "should reverse_geocode set attributes" do
     Geocoder::Lookup::Test.add_stub(
       [ 40.7143528, -74.0059731 ], [
         {
           "postal_code" => "000-0000",
-          "formatted_address" => "日本, Test Address"
+          "formatted_address" => "日本, Test Address",
+          "address_components" => [ { "types" => [ "locality", "political" ], "long_name" => "City Name" } ]
         }
       ]
     )
-
-    class Geocoder::Result::Test
-      def address_components
-        [ { "types" => [ "locality", "political" ], "long_name" => "City Name" } ]
-      end
-    end
 
     bus_stop = BusStop.new(latitude: 40.7143528, longitude: -74.0059731)
     bus_stop.reverse_geocode
@@ -67,5 +87,35 @@ class BusStopTest < ActiveSupport::TestCase
     assert_equal "000-0000", bus_stop.postal_code
     assert_equal "City Name", bus_stop.city
     assert_equal "Test Address", bus_stop.formatted_address
+  end
+
+  test "should reverse_geocode skip city when locality is missing" do
+    Geocoder::Lookup::Test.add_stub(
+      [ 1.0, 2.0 ], [
+        {
+          "postal_code" => "111-1111",
+          "formatted_address" => "日本, Country Only Address",
+          "address_components" => [ { "types" => [ "country" ], "long_name" => "Japan" } ]
+        }
+      ]
+    )
+
+    bus_stop = BusStop.new(latitude: 1.0, longitude: 2.0)
+    bus_stop.reverse_geocode
+
+    assert_equal "111-1111", bus_stop.postal_code
+    assert_nil bus_stop.city
+    assert_equal "Country Only Address", bus_stop.formatted_address
+  end
+
+  test "should reverse_geocode do nothing when no results" do
+    Geocoder::Lookup::Test.add_stub([ 9.0, 9.0 ], [])
+
+    bus_stop = BusStop.new(latitude: 9.0, longitude: 9.0)
+    bus_stop.reverse_geocode
+
+    assert_nil bus_stop.postal_code
+    assert_nil bus_stop.city
+    assert_equal "", bus_stop.formatted_address
   end
 end

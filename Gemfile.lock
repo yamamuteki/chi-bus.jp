@@ -77,7 +77,6 @@ GEM
       uri (>= 0.13.1)
     addressable (2.9.0)
       public_suffix (>= 2.0.2, < 8.0)
-    ansi (1.6.0)
     ast (2.4.3)
     autoprefixer-rails (10.4.21.0)
       execjs (~> 2)
@@ -209,11 +208,6 @@ GEM
     minitest-rails (8.1.0)
       minitest (~> 5.20)
       railties (>= 8.1.0, < 8.2.0)
-    minitest-reporters (1.8.0)
-      ansi
-      builder
-      minitest (>= 5.0, < 7)
-      ruby-progressbar
     msgpack (1.8.0)
     multi_xml (0.9.0)
       bigdecimal (>= 3.1, < 5)
@@ -467,7 +461,6 @@ DEPENDENCIES
   jquery-rails
   kamal
   minitest-rails
-  minitest-reporters
   newrelic_rpm
   pg (~> 1.2)
   propshaft

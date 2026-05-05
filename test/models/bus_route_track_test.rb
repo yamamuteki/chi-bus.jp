@@ -12,15 +12,31 @@ class BusRouteTrackTest < ActiveSupport::TestCase
     assert_respond_to bus_route_track, :bus_route
   end
 
-  test "shoud coordinates serialize to JSON" do
-    bus_route_track = BusRouteTrack.new
+  test "should require bus_route" do
+    track = BusRouteTrack.new(gml_id: "x", coordinates: [])
+    refute track.valid?
+    assert_includes track.errors[:bus_route], "must exist"
+  end
 
-    bus_route_track.coordinates = []
-    assert_equal "[]", bus_route_track.coordinates.inspect
-    assert_not_equal '"[]"', bus_route_track.coordinates.inspect
+  test "should coordinates round-trip through database as JSON" do
+    bus_route_track = BusRouteTrack.create!(
+      bus_route: bus_routes(:one),
+      gml_id: "track-roundtrip",
+      coordinates: [ [ 1.5, 2.5 ], [ 3.5, 4.5 ] ]
+    )
 
-    bus_route_track.gml_id = []
-    assert_equal '"[]"', bus_route_track.gml_id.inspect
-    assert_not_equal "[]", bus_route_track.gml_id.inspect
+    bus_route_track.reload
+    assert_equal [ [ 1.5, 2.5 ], [ 3.5, 4.5 ] ], bus_route_track.coordinates
+  end
+
+  test "should coordinates round-trip empty array" do
+    bus_route_track = BusRouteTrack.create!(
+      bus_route: bus_routes(:one),
+      gml_id: "track-empty",
+      coordinates: []
+    )
+
+    bus_route_track.reload
+    assert_equal [], bus_route_track.coordinates
   end
 end

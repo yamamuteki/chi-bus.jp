@@ -1,4 +1,4 @@
-# chi-bus.jp [![Build Status](https://travis-ci.org/yamamuteki/chi-bus.jp.svg?branch=master)](https://travis-ci.org/yamamuteki/chi-bus.jp) [![Coverage Status](https://coveralls.io/repos/github/yamamuteki/chi-bus.jp/badge.svg?branch=master)](https://coveralls.io/github/yamamuteki/chi-bus.jp?branch=master) [![Code Climate](https://codeclimate.com/github/yamamuteki/chi-bus.jp/badges/gpa.svg)](https://codeclimate.com/github/yamamuteki/chi-bus.jp)
+# chi-bus.jp
 
 千葉・東京・神奈川・埼玉（および茨城・栃木・群馬の一部）を対象とした、バス停と路線情報を提供する Web サービスです。
 
