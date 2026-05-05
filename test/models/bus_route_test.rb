@@ -29,6 +29,17 @@ class BusRouteTest < ActiveSupport::TestCase
     bus_route.bus_type = 5; assert_equal "その他", bus_route.bus_type_label
   end
 
+  test "should bus_type_label work with symbol and string setters" do
+    # 実装は `bus_type.to_s.to_sym` で吸収しているため、enum へ整数・シンボル・文字列の
+    # どれを渡しても同じラベルが返ることを確認する。
+    bus_route = BusRoute.new
+    bus_route.bus_type = :private_bus
+    assert_equal "路線バス（民間）", bus_route.bus_type_label
+
+    bus_route.bus_type = "public_bus"
+    assert_equal "路線バス（公営）", bus_route.bus_type_label
+  end
+
   test "should bus_route_bus_stops order by bus_stop_number" do
     bus_route = BusRoute.create!
     bus_route.bus_route_bus_stops << BusRouteBusStop.new(bus_stop_number: 2, bus_stop: BusStop.new(name: "2"))

@@ -12,6 +12,12 @@ class BusRouteTrackTest < ActiveSupport::TestCase
     assert_respond_to bus_route_track, :bus_route
   end
 
+  test "should require bus_route" do
+    track = BusRouteTrack.new(gml_id: "x", coordinates: [])
+    refute track.valid?
+    assert_includes track.errors[:bus_route], "must exist"
+  end
+
   test "should coordinates round-trip through database as JSON" do
     bus_route_track = BusRouteTrack.create!(
       bus_route: bus_routes(:one),
