@@ -45,6 +45,31 @@ class BusStopTest < ActiveSupport::TestCase
     assert_equal "2", bus_stop.bus_routes[3].line_name
   end
 
+  test "should keyword search match by kanji, hiragana, katakana, and romaji" do
+    bus_stop = BusStop.create!(
+      name: "千葉駅",
+      latitude: 35.6049233,
+      longitude: 140.1208483,
+      keyword: "千葉駅 chibaeki ちばえき チバエキ"
+    )
+
+    # コントローラ側で使う SQL と同じ形（lower + like）で各表記が引けることを確認する。
+    [ "千葉", "chiba", "ちば", "チバ" ].each do |query|
+      results = BusStop.where("lower(keyword) like lower(?)", "%#{query}%")
+      assert_includes results, bus_stop, "expected query #{query.inspect} to match"
+    end
+  end
+
+  test "should near return bus stops ordered by distance" do
+    chibaeki = BusStop.create!(name: "千葉駅",     latitude: 35.6049233, longitude: 140.1208483)
+    kaihin   = BusStop.create!(name: "海浜幕張駅", latitude: 35.6489000, longitude: 140.0337000)
+
+    results = BusStop.near([ 35.6049233, 140.1208483 ], 50).to_a
+
+    assert_equal chibaeki, results.first
+    assert_includes results, kaihin
+  end
+
   test "should reverse_geocode set attributes" do
     Geocoder::Lookup::Test.add_stub(
       [ 40.7143528, -74.0059731 ], [

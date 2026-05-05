@@ -99,3 +99,53 @@ jobs:
           RAILS_DATABASE_PASSWORD: postgres
           GOOGLE_API_KEY: dummy
         run: bin/rails db:test:prepare test
+
+  system-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+          image: postgres:15
+          ports:
+            - 5432:5432
+          env:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_DB: chi_bus_test
+
+      selenium:
+        image: seleniarm/standalone-chromium:latest
+        ports:
+          - "4444:4444"
+
+    steps:
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Run system tests
+        env:
+          RAILS_ENV: test
+          RAILS_DATABASE_HOST: localhost
+          RAILS_DATABASE_PORT: 5432
+          RAILS_DATABASE_USER: postgres
+          RAILS_DATABASE_PASSWORD: postgres
+          GOOGLE_API_KEY: dummy
+          SELENIUM_REMOTE_URL: http://localhost:4444/wd/hub
+        run: bin/rails db:test:prepare test:system
+
+      - name: Keep screenshots from failed system tests
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: screenshots
+          path: ${{ github.workspace }}/tmp/screenshots
+          if-no-files-found: ignore
