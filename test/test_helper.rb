@@ -1,5 +1,9 @@
 require "simplecov"
-SimpleCov.start "rails"
+SimpleCov.start "rails" do
+  # 既存値（執筆時点で 94% 超）から大きく下回らない範囲で、新規コードに自然とテストを付ける
+  # 圧力をかける目的の下限値。下げる場合は理由を残すこと。
+  minimum_coverage line: 80
+end
 
 require "minitest/reporters"
 require "minitest/mock"
