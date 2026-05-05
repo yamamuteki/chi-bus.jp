@@ -92,3 +92,7 @@ gem "ruby-progressbar"
 gem "simplify_rb"
 gem "simplecov", require: false, group: :test
 gem "rails-erd", group: :development
+# rails keyword:generate タスクで使用
+gem "kakasi_parser", group: :development
+# kakasi gem の実行時依存（Ruby 4.0 で default gem から外れるため明示）
+gem "fiddle", group: :development
