@@ -24,4 +24,22 @@ class PlaceTest < ActiveSupport::TestCase
     assert spot === place.spot
     assert spot.verify
   end
+
+  test "should formatted_address strip leading '日本, '" do
+    spot = Minitest::Mock.new
+    spot.expect :formatted_address, "日本, 東京都千代田区"
+
+    place = Place.new spot
+    assert_equal "東京都千代田区", place.formatted_address
+    assert spot.verify
+  end
+
+  test "should formatted_address leave string unchanged when no '日本, ' prefix" do
+    spot = Minitest::Mock.new
+    spot.expect :formatted_address, "Tokyo, Japan"
+
+    place = Place.new spot
+    assert_equal "Tokyo, Japan", place.formatted_address
+    assert spot.verify
+  end
 end
