@@ -7,6 +7,15 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: "検索結果はありません。"
   end
 
+  test "should treat empty q as match-all keyword search" do
+    # `if params[:q]` は空文字でも truthy なので keyword 分岐に入り、
+    # `lower(keyword) like '%%'` で全件にヒットする。fixture が 2 件のため 2 件返る。
+    # Google Places フォールバックには行かない（`@bus_stops.empty?` が偽）。
+    get bus_stops_path, params: { q: "" }
+    assert_response :success
+    assert_select "a.list-group-item", count: 2
+  end
+
   test "should get index with bus stop query and hits" do
     get bus_stops_path, params: { q: "Stop" }
     assert_response :success
