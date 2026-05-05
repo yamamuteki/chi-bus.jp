@@ -6,4 +6,7 @@ if BusStop.exists? || BusRoute.exists? || BusRouteTrack.exists? || BusRouteBusSt
   puts "Data already loaded. Skipping. Run `bin/rails data:load` to force reload."
 else
   Rake::Task["data:load"].invoke
+  # bus_route_bus_stops.csv / bus_stops.csv の派生列は data:generate では NULL のまま出力される。
+  # 各 load タスクが対応する CSV (db/data/*.csv) から bulk UPDATE で値を埋める。
+  Rake::Task["bus_stop_number:load"].invoke
 end
