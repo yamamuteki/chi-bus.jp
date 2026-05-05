@@ -89,8 +89,40 @@ h1, .h1, h2, .h2, h3, .h3 {
 
 .map {
   width: 100%;
-  height: calc(100vh - 120px); /* iPad対応のためJSで調整 */
+  // dvh はモバイル Safari のアドレスバー表示状態に追従するため、100vh で起きていた「実画面より大きくなる」問題が出ない。
+  height: calc(100dvh - 120px);
   margin-bottom: 10px;
+}
+
+/*
+ * バス停・路線一覧の縦スクロール枠。
+ * - PC（768px以上）は右カラムを flex で組み、ヘッダ（h3 など）の残り高さをリスト枠に与えて内部スクロール
+ * - スマホ・印刷時はページ全体を素直に流したいので、高さを固定せず overflow-y: visible
+ */
+.list-window {
+  overflow-y: visible;
+}
+
+@media (min-width: 768px) {
+  // .list-window を含む右カラムを flex コンテナにして、リスト枠が縦の残りスペースを吸収するようにする。
+  // :has() セレクタを使うことで、ビュー側に追加クラスを付けずに「リスト枠を持つ列」だけを対象にできる。
+  .col-sm-4:has(> .list-window) {
+    height: calc(100dvh - 120px); // マップと同じ高さに揃える
+    display: flex;
+    flex-direction: column;
+  }
+
+  .list-window {
+    flex: 1;          // 残り高さを自動で吸収
+    overflow-y: auto; // はみ出した分だけ内部スクロール
+    min-height: 0;    // flex 子要素が縮める用のおまじない（無いと縮まずに親をはみ出す）
+  }
+}
+
+@media print {
+  .list-window {
+    overflow-y: visible;
+  }
 }
 
 .search-box {
