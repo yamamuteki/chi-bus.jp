@@ -43,6 +43,19 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "should get index with malformed position falling back to 0,0" do
+    # `params[:position].split(",")[0].to_f` の挙動上、不正値は (0.0, 0.0) として扱われる。
+    # 例外で 500 にせず正常レスポンスを返すことを明文化する。
+    get bus_stops_path, params: { position: "abc" }
+    assert_response :success
+  end
+
+  test "should prefer q over position when both given" do
+    get bus_stops_path, params: { q: "Stop", position: "1,1" }
+    assert_response :success
+    assert_select "a.list-group-item", count: 2
+  end
+
   test "should get show" do
     Geocoder::Lookup::Test.add_stub(
       "1.5,1.5", [
@@ -60,5 +73,10 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
 
     get bus_stop_path(bus_stops(:one))
     assert_response :success
+  end
+
+  test "should return 404 for unknown bus_stop id" do
+    get bus_stop_path(id: 999_999_999)
+    assert_response :not_found
   end
 end
