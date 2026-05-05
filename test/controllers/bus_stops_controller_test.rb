@@ -14,42 +14,28 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should get index with place query and no hits" do
-    instance_mock = Minitest::Mock.new
-    instance_mock.expect :spots_by_query, [], [ String ], lat: Float, lng: Float, radius: Integer, language: String
-    class_mock = Minitest::Mock.new
-    class_mock.expect :new, instance_mock, [ String ]
-    GooglePlaces.send(:remove_const, :Client)
-    GooglePlaces::Client = class_mock
-
-    get bus_stops_path, params: { q: "no hits" }
-    assert_response :success
-    assert_select "p", text: "検索結果はありません。"
-    instance_mock.verify
-    class_mock.verify
+    with_google_places_stub(spots: []) do
+      get bus_stops_path, params: { q: "no hits" }
+      assert_response :success
+      assert_select "p", text: "検索結果はありません。"
+    end
   end
 
   test "should get index with place query and hits" do
-    spot = nil
-    def spot.place_id; "place_id" end
-    def spot.name; "name" end
-    def spot.lat; 1.5 end
-    def spot.lng; 2.5 end
-    def spot.formatted_address; "formatted_address" end
-    def spot.place_id; "place_id" end
+    spot = GooglePlacesSpot.new(
+      place_id: "place_id",
+      name: "name",
+      lat: 1.5,
+      lng: 2.5,
+      formatted_address: "formatted_address"
+    )
 
-    instance_mock = Minitest::Mock.new
-    instance_mock.expect :spots_by_query, [ spot ], [ String ], lat: Float, lng: Float, radius: Integer, language: String
-    class_mock = Minitest::Mock.new
-    class_mock.expect :new, instance_mock, [ String ]
-    GooglePlaces.send(:remove_const, :Client)
-    GooglePlaces::Client = class_mock
-
-    get bus_stops_path, params: { q: "hits" }
-    assert_response :success
-    assert_select "a.list-group-item", count: 1
-    assert_select "div.badge", text: "周辺"
-    instance_mock.verify
-    class_mock.verify
+    with_google_places_stub(spots: [ spot ]) do
+      get bus_stops_path, params: { q: "hits" }
+      assert_response :success
+      assert_select "a.list-group-item", count: 1
+      assert_select "div.badge", text: "周辺"
+    end
   end
 
   test "should get index with position" do
