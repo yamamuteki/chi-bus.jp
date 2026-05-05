@@ -7,6 +7,15 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: "検索結果はありません。"
   end
 
+  test "should treat empty q as match-all keyword search" do
+    # `if params[:q]` は空文字でも truthy なので keyword 分岐に入り、
+    # `lower(keyword) like '%%'` で全件にヒットする。fixture が 2 件のため 2 件返る。
+    # Google Places フォールバックには行かない（`@bus_stops.empty?` が偽）。
+    get bus_stops_path, params: { q: "" }
+    assert_response :success
+    assert_select "a.list-group-item", count: 2
+  end
+
   test "should get index with bus stop query and hits" do
     get bus_stops_path, params: { q: "Stop" }
     assert_response :success
@@ -35,6 +44,27 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "a.list-group-item", count: 1
       assert_select "div.badge", text: "周辺"
+    end
+  end
+
+  test "should cache GooglePlaces results by query string" do
+    # test 環境のキャッシュは :null_store で何も保持しないため、本テストの間だけ
+    # memory_store に差し替えてキャッシュ動作を検証する。
+    original_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    begin
+      # `with_google_places_stub` は `spots_by_query` を 1 回しか期待しない Mock を作るため、
+      # 同じ q で 2 回 GET しても 2 回目はキャッシュから返って API が叩かれず、
+      # 終了時の mock.verify が成功する。逆にキャッシュが効かなければ verify が失敗する。
+      with_google_places_stub(spots: []) do
+        get bus_stops_path, params: { q: "cached query" }
+        assert_response :success
+
+        get bus_stops_path, params: { q: "cached query" }
+        assert_response :success
+      end
+    ensure
+      Rails.cache = original_cache
     end
   end
 

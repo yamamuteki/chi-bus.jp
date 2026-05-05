@@ -75,16 +75,11 @@ class BusStopTest < ActiveSupport::TestCase
       [ 40.7143528, -74.0059731 ], [
         {
           "postal_code" => "000-0000",
-          "formatted_address" => "日本, Test Address"
+          "formatted_address" => "日本, Test Address",
+          "address_components" => [ { "types" => [ "locality", "political" ], "long_name" => "City Name" } ]
         }
       ]
     )
-
-    class Geocoder::Result::Test
-      def address_components
-        [ { "types" => [ "locality", "political" ], "long_name" => "City Name" } ]
-      end
-    end
 
     bus_stop = BusStop.new(latitude: 40.7143528, longitude: -74.0059731)
     bus_stop.reverse_geocode
@@ -92,5 +87,35 @@ class BusStopTest < ActiveSupport::TestCase
     assert_equal "000-0000", bus_stop.postal_code
     assert_equal "City Name", bus_stop.city
     assert_equal "Test Address", bus_stop.formatted_address
+  end
+
+  test "should reverse_geocode skip city when locality is missing" do
+    Geocoder::Lookup::Test.add_stub(
+      [ 1.0, 2.0 ], [
+        {
+          "postal_code" => "111-1111",
+          "formatted_address" => "日本, Country Only Address",
+          "address_components" => [ { "types" => [ "country" ], "long_name" => "Japan" } ]
+        }
+      ]
+    )
+
+    bus_stop = BusStop.new(latitude: 1.0, longitude: 2.0)
+    bus_stop.reverse_geocode
+
+    assert_equal "111-1111", bus_stop.postal_code
+    assert_nil bus_stop.city
+    assert_equal "Country Only Address", bus_stop.formatted_address
+  end
+
+  test "should reverse_geocode do nothing when no results" do
+    Geocoder::Lookup::Test.add_stub([ 9.0, 9.0 ], [])
+
+    bus_stop = BusStop.new(latitude: 9.0, longitude: 9.0)
+    bus_stop.reverse_geocode
+
+    assert_nil bus_stop.postal_code
+    assert_nil bus_stop.city
+    assert_equal "", bus_stop.formatted_address
   end
 end
