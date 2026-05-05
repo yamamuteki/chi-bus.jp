@@ -1,9 +1,13 @@
-# db/N07-11_*.xml（路線）と db/P11-10_*-jgd-g.xml（バス停）を解析し、
-# db/*.json の派生データをマージして db/data/*.csv を生成・DBに投入する rake タスク。
+# db/N07-11_*.xml（路線）と db/P11-10_*-jgd-g.xml（バス停）を解析して
+# db/data/*.csv を生成・DB に投入する rake タスク。
 #
 # データソースは「国土数値情報」（国土交通省）。XML は重く、`generate` は
 # ローカルで実行して結果（CSV）を git にコミットする運用。`load` は CSV を
 # PostgreSQL の COPY FROM STDIN で流し込む高速ロードで、Heroku 上でも数十秒で完了する。
+#
+# 派生データ（bus_stop_number / 住所情報 / keyword）は別タスク群が独立した CSV を持って
+# bulk UPDATE で投入する。data:load の後に bus_stop_number:load / geocode:load /
+# keyword:load を順次呼ぶと完成形の DB になる（db/seeds.rb 参照）。
 #
 # クラスをファイル先頭に置いているのは、rake namespace 内に書くと定数解決が
 # やや煩雑になるため。lib/tasks/ は Rails の autoload 対象外なので、トップレベルに
@@ -47,12 +51,13 @@ class DataGenerator
     @route_id_by_key = {}
   end
 
-  # エントリポイント。XML パース → JSON マージ → CSV 書き出しの順に実行。
+  # エントリポイント。XML パース → CSV 書き出しの順に実行。
+  # bus_stop_number / 住所情報 / keyword などの派生データは別タスク (bus_stop_number:generate /
+  # geocode:generate / keyword:generate) が独立して CSV を生成・load する責務。
   def run
     PREFECTURES.each_key { |code| parse_route_xml(code) }
     build_route_lookup
     PREFECTURES.each { |code, prefecture| parse_stop_xml(code, prefecture) }
-    merge_json_data
     write_all_csv
   end
 
@@ -204,7 +209,7 @@ class DataGenerator
         id: @bus_route_bus_stops.size + 1,
         bus_route_id: route_id,
         bus_stop_id: bs_id,
-        bus_stop_number: nil, # merge_json_data で埋める
+        bus_stop_number: nil, # bus_stop_number:load が CSV から埋める
         created_at: @now,
         updated_at: @now
       }
@@ -212,48 +217,7 @@ class DataGenerator
   end
 
   # ---------------------------------------------------------------------------
-  # 3. JSON マージ（XML から得られない派生データを上書き）
-  # ---------------------------------------------------------------------------
-  # いずれの JSON も「id - 1 が配列の添字に対応する」前提。bus_stop_number:generate /
-  # geocode:generate / keyword:generate の各タスクで生成した結果を永続化したもの。
-
-  def merge_json_data
-    merge_bus_stop_numbers
-    merge_geocoding_data
-    merge_keywords
-  end
-
-  # 路線内の停留所順序（bus_route_bus_stops.bus_stop_number）
-  def merge_bus_stop_numbers
-    JSON.parse(File.read("db/bus_stop_number.json")).each do |rec|
-      idx = rec["bus_route_bus_stop_id"] - 1
-      next unless @bus_route_bus_stops[idx]
-      @bus_route_bus_stops[idx][:bus_stop_number] = rec["bus_stop_number"]
-    end
-  end
-
-  # 逆ジオコーディング結果（郵便番号・市区町村・整形済み住所）
-  def merge_geocoding_data
-    JSON.parse(File.read("db/geocording_data.json")).each do |rec|
-      idx = rec["bus_stop_id"] - 1
-      next unless @bus_stops[idx]
-      @bus_stops[idx][:postal_code]       = rec["postal_code"]
-      @bus_stops[idx][:city]              = rec["city"]
-      @bus_stops[idx][:formatted_address] = rec["formatted_address"]
-    end
-  end
-
-  # 検索用キーワード（停留所名 + ローマ字 + ひらがな + カタカナを連結）
-  def merge_keywords
-    JSON.parse(File.read("db/keywords.json")).each do |rec|
-      idx = rec["bus_stop_id"] - 1
-      next unless @bus_stops[idx]
-      @bus_stops[idx][:keyword] = rec["keyword"]
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # 4. CSV 書き出し（PostgreSQL の COPY FROM ... CSV HEADER 互換フォーマット）
+  # 3. CSV 書き出し（PostgreSQL の COPY FROM ... CSV HEADER 互換フォーマット）
   # ---------------------------------------------------------------------------
 
   def write_all_csv
@@ -312,12 +276,11 @@ namespace :data do
   # COPY 文の対象テーブル。順序は外部キー依存順（先に親、最後に子）。
   TABLES = %w[bus_routes bus_route_tracks bus_stops bus_route_bus_stops].freeze
 
-  desc "Generate db/data/*.csv from XML and JSON sources"
+  desc "Generate db/data/*.csv from XML sources"
   task generate: :environment do
     require "nokogiri"
     require "simplify_rb"
     require "csv"
-    require "json"
 
     DataGenerator.new.run
   end
