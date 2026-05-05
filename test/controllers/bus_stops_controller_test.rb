@@ -38,6 +38,27 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should cache GooglePlaces results by query string" do
+    # test 環境のキャッシュは :null_store で何も保持しないため、本テストの間だけ
+    # memory_store に差し替えてキャッシュ動作を検証する。
+    original_cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    begin
+      # `with_google_places_stub` は `spots_by_query` を 1 回しか期待しない Mock を作るため、
+      # 同じ q で 2 回 GET しても 2 回目はキャッシュから返って API が叩かれず、
+      # 終了時の mock.verify が成功する。逆にキャッシュが効かなければ verify が失敗する。
+      with_google_places_stub(spots: []) do
+        get bus_stops_path, params: { q: "cached query" }
+        assert_response :success
+
+        get bus_stops_path, params: { q: "cached query" }
+        assert_response :success
+      end
+    ensure
+      Rails.cache = original_cache
+    end
+  end
+
   test "should get index with position" do
     get bus_stops_path, params: { position: "40.7143528,-74.0059731" }
     assert_response :success
