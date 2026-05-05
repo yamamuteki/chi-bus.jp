@@ -61,7 +61,7 @@ docker compose run --rm app bundle exec erd
 
 本番環境は Heroku で、`master` ブランチへの push をトリガーにオートデプロイされます。`develop` で開発し、リリース時に `master` へマージしてください。
 
-`Procfile` の `release` フェーズで `bin/rails db:prepare` が走り、初回デプロイなら `db:create` + `db:schema:load` + `db:seed`（`db/seeds.rb` のガード経由で `data:load` が呼ばれて `db/data/*.csv` を `COPY` 投入）、2 回目以降なら `db:migrate` のみが実行されます。
+DB マイグレーションとキャッシュクリアは buildpack 方式で行います。`gunpowderlabs/buildpack-ruby-rake-deploy-tasks` が `DEPLOY_TASKS` 環境変数に列挙した rake task を build phase で実行するため、出力は build log に流れて Heroku Activity / GitHub の Deployment 画面から確認できます。
 
 初回セットアップが必要な場合：
 
@@ -69,4 +69,13 @@ docker compose run --rm app bundle exec erd
 2. `heroku login`
 3. Heroku Postgres アドオンを追加
 4. config vars に `GOOGLE_API_KEY`、`SECRET_KEY_BASE`、`RAILS_LOG_TO_STDOUT=enabled`、`RAILS_SERVE_STATIC_FILES=enabled` などを設定
-5. GitHub 連携を有効化して `master` ブランチの自動デプロイを ON
+5. buildpack と `DEPLOY_TASKS` を設定する：
+
+   ```
+   heroku buildpacks:set https://github.com/heroku/heroku-buildpack-ruby
+   heroku buildpacks:add https://github.com/gunpowderlabs/buildpack-ruby-rake-deploy-tasks
+   heroku config:set DEPLOY_TASKS='db:migrate cache:clear'
+   ```
+
+6. GitHub 連携を有効化して `master` ブランチの自動デプロイを ON
+7. 初回デプロイ後、データ投入が必要なら `heroku run bin/rails db:seed`（`data:load` 経由で `db/data/*.csv` が `COPY` 投入される）
