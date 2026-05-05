@@ -9,4 +9,5 @@ else
   # bus_route_bus_stops.csv / bus_stops.csv の派生列は data:generate では NULL のまま出力される。
   # 各 load タスクが対応する CSV (db/data/*.csv) から bulk UPDATE で値を埋める。
   Rake::Task["bus_stop_number:load"].invoke
+  Rake::Task["keyword:load"].invoke
 end

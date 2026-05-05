@@ -5,6 +5,11 @@ on:
   push:
     branches: [ master, develop ]
 
+# kakasi_parser は keyword:generate タスクでのみ使う development gem。
+# C 拡張で libkakasi-dev を要求するが CI 環境にはないので、CI では development グループ全体を除外する。
+env:
+  BUNDLE_WITHOUT: development
+
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
