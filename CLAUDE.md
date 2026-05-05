@@ -14,13 +14,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 本番デプロイ
 
 - 本番環境は **Heroku**、`master` ブランチへのマージで **オートデプロイ**される。
-- リリース時の DB 操作は `Procfile` の `release` フェーズで `bin/rails db:prepare` が走る（migration、初回 seed まで自動化）。
+- DB セットアップとキャッシュクリアは buildpack 方式（`gunpowderlabs/buildpack-ruby-rake-deploy-tasks`）で実行する。`DEPLOY_TASKS='db:prepare cache:clear'` を build phase の最後に走らせる構成。release phase ではなく build phase に寄せたのは、release phase の失敗が build log に出ず GitHub オートデプロイ運用では見落としやすかったため（`Procfile` は使わない）。
+- 罠: `db:prepare` は **fresh DB（schema_migrations が空）のときだけ** schema:load + seed を回し、既存 DB では migrate しか走らない。データを完全に投入し直したいときはテーブル定義ごと吹き飛ばす必要があるので `heroku pg:reset DATABASE` を使う。
 - したがって `develop` → `master` の PR マージは「リリース操作そのもの」。マイグレーションの有無、`ENV` 追加、外部 API 呼び出しの増加などの影響範囲を確認したうえで、ユーザーが手動マージする。
+- セットアップ手順とコマンドは `README.md` の「Heroku でのデプロイ」節を参照。
 
 ### git 操作の確認ルール
 
-- ユーザーは手元で `git diff` を全件レビューしている。**Claude は勝手に `git add` / `commit` / `push` / ブランチ作成 / PR 作成をしない**。
-- ファイル編集自体は通常通り行ってよい。git に反映する操作のみ、明示的な依頼があってから実行する。
+- ユーザーは手元で `git diff` を全件レビューしている。**Claude は勝手に `git add` / `commit` / `push` / PR 作成をしない**。
+- ファイル編集およびブランチ作成は通常通り行ってよい。git に反映する操作（add / commit / push / PR）のみ、明示的な依頼があってから実行する。
 
 ### コミットメッセージ・PR の言語ルール
 
