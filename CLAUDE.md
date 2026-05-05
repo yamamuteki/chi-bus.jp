@@ -19,8 +19,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### git 操作の確認ルール
 
-- ユーザーは手元で `git diff` を全件レビューしている。**Claude は勝手に `git add` / `commit` / `push` / ブランチ作成 / PR 作成をしない**。
-- ファイル編集自体は通常通り行ってよい。git に反映する操作のみ、明示的な依頼があってから実行する。
+- ユーザーは手元で `git diff` を全件レビューしている。**Claude は勝手に `git add` / `commit` / `push` / PR 作成をしない**。
+- ファイル編集およびブランチ作成は通常通り行ってよい。git に反映する操作（add / commit / push / PR）のみ、明示的な依頼があってから実行する。
 
 ### コミットメッセージ・PR の言語ルール
 
