@@ -69,7 +69,13 @@ DB マイグレーションとキャッシュクリアは buildpack 方式で行
 2. `heroku login`
 3. Heroku Postgres アドオンを追加
 4. config vars に `GOOGLE_API_KEY`、`SECRET_KEY_BASE`、`RAILS_LOG_TO_STDOUT=enabled`、`RAILS_SERVE_STATIC_FILES=enabled` などを設定
-5. buildpack と `DEPLOY_TASKS` を設定する：
+5. heroku CLI を対象アプリに関連付ける（以降の `heroku` コマンドで `-a <app名>` を毎回指定しなくて済む。デプロイ自体は GitHub 連携経由なのでこの remote 経由で push する必要はない）：
+
+   ```
+   heroku git:remote -a <app名>
+   ```
+
+6. buildpack と `DEPLOY_TASKS` を設定する：
 
    ```
    heroku buildpacks:set https://github.com/heroku/heroku-buildpack-ruby
@@ -77,5 +83,5 @@ DB マイグレーションとキャッシュクリアは buildpack 方式で行
    heroku config:set DEPLOY_TASKS='db:migrate cache:clear'
    ```
 
-6. GitHub 連携を有効化して `master` ブランチの自動デプロイを ON
-7. 初回デプロイ後、データ投入が必要なら `heroku run bin/rails db:seed`（`data:load` 経由で `db/data/*.csv` が `COPY` 投入される）
+7. GitHub 連携を有効化して `master` ブランチの自動デプロイを ON
+8. 初回デプロイ後、データ投入が必要なら `heroku run bin/rails db:seed`（`data:load` 経由で `db/data/*.csv` が `COPY` 投入される）
