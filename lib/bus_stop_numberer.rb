@@ -11,9 +11,23 @@
 #     100m 以上ある区間では複数バス停が同 idx に吸い込まれて tie-break (距離) で並ぶことがあり、
 #     軌跡進行方向と逆順になるケースがあった (例: 都営南千47 の 泪橋/清川)。
 #     segment + t なら 1 つの coord 間にあるバス停同士でも進行順に並ぶ。
+#
+# 診断用に call_with_diagnostics を提供。各バス停の軌跡からの距離 (m) を一緒に返す。
+# 距離が大きいバス停は「軌跡データが路線をカバーしていない」サインで、データ欠損を識別できる
+# (例: 神奈川中央交通 津01 で 32 バス停が軌跡から 20km 離れている)。
 class BusStopNumberer
+  Result = Struct.new(:assignments, :distances_m, keyword_init: true)
+
+  # 緯度 1 度 ≈ 111km の近似で度² から m に変換する係数。
+  # (経度方向は緯度依存だが、200m 閾値の判定なら近似で十分。)
+  DEG_TO_M = 111_000.0
+
   def self.call(flat_coords:, bus_route_bus_stops:)
-    new(flat_coords, bus_route_bus_stops).call
+    new(flat_coords, bus_route_bus_stops).call_with_diagnostics.assignments
+  end
+
+  def self.call_with_diagnostics(flat_coords:, bus_route_bus_stops:)
+    new(flat_coords, bus_route_bus_stops).call_with_diagnostics
   end
 
   def initialize(flat_coords, bus_route_bus_stops)
@@ -21,26 +35,30 @@ class BusStopNumberer
     @brbs = bus_route_bus_stops
   end
 
-  def call
+  def call_with_diagnostics
     if @flat_coords.empty?
-      return @brbs.map { |b| [ b.id, nil ] }
+      assignments = @brbs.map { |b| [ b.id, nil ] }
+      distances = @brbs.to_h { |b| [ b.id, nil ] }
+      return Result.new(assignments: assignments, distances_m: distances)
     end
 
     # flat_coords が 1 点しかない場合は segment が作れない。全 brbs を idx=0 の点との距離で並べる。
     if @flat_coords.size == 1
       c = @flat_coords[0]
-      result = @brbs.map { |brbs|
+      pre = @brbs.map { |brbs|
         bs = brbs.bus_stop
         d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
         [ brbs.id, 0.0, d ]
       }
-      result.sort_by! { |id, pos, dist| [ pos, dist, id ] }
-      return result.each_with_index.map { |(id, _, _), i| [ id, i + 1 ] }
+      sorted = pre.sort_by { |id, pos, dist_sq| [ pos, dist_sq, id ] }
+      assignments = sorted.each_with_index.map { |(id, _, _), i| [ id, i + 1 ] }
+      distances = pre.to_h { |id, _, dist_sq| [ id, Math.sqrt(dist_sq) * DEG_TO_M ] }
+      return Result.new(assignments: assignments, distances_m: distances)
     end
 
     # 各 brbs について、最も近い segment と segment 内位置 t を計算して
     # curvilinear position (= segment_index + t) を求める。
-    result = @brbs.map do |brbs|
+    pre = @brbs.map do |brbs|
       bs = brbs.bus_stop
       lat = bs.latitude
       lng = bs.longitude
@@ -60,8 +78,7 @@ class BusStopNumberer
           cx = p[0]
           cy = p[1]
         else
-          # 線分上への射影。t を [0, 1] にクランプして外挿を防ぐ (この segment の範囲外は
-          # 隣接 segment が拾う想定)。
+          # 線分上への射影。t を [0, 1] にクランプして外挿を防ぐ。
           t = ((lat - p[0]) * dx + (lng - p[1]) * dy) / seg_len_sq
           t = 0.0 if t < 0.0
           t = 1.0 if t > 1.0
@@ -81,7 +98,9 @@ class BusStopNumberer
     end
 
     # curvilinear position 昇順 → 同位置は距離順 → 同距離は id 順で安定化。
-    result.sort_by! { |id, pos, dist| [ pos, dist, id ] }
-    result.each_with_index.map { |(id, _, _), i| [ id, i + 1 ] }
+    sorted = pre.sort_by { |id, pos, dist_sq| [ pos, dist_sq, id ] }
+    assignments = sorted.each_with_index.map { |(id, _, _), i| [ id, i + 1 ] }
+    distances = pre.to_h { |id, _, dist_sq| [ id, Math.sqrt(dist_sq) * DEG_TO_M ] }
+    Result.new(assignments: assignments, distances_m: distances)
   end
 end

@@ -43,8 +43,26 @@ namespace :bus_stop_number do
     rows = []
     progress = ProgressBar.create(title: "Diagnose", total: BusRoute.count, format: "%t: %J%% |%B|")
 
+    # バス停が「軌跡から離れている」とみなす閾値 (m)。本来 10〜30m に収まるはずなので、
+    # この値を超えたら「軌跡データが欠損して別エリアに置き去り」のサイン。
+    off_track_threshold_m = 200.0
+
     BusRoute.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
-      result = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
+      stitch = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
+      brbs_list = bus_route.bus_route_bus_stops.to_a
+      number_result = BusStopNumberer.call_with_diagnostics(
+        flat_coords: stitch.flat_coords,
+        bus_route_bus_stops: brbs_list
+      )
+
+      # 軌跡から離れたバス停の集計。データ欠損路線を識別する指標。
+      off_track_count = 0
+      off_track_max_m = 0.0
+      number_result.distances_m.each_value do |dist|
+        next if dist.nil?
+        off_track_count += 1 if dist > off_track_threshold_m
+        off_track_max_m = dist if dist > off_track_max_m
+      end
 
       # 採番品質の直接指標: bus_stop_number 順に並んだ連続 3 バス停で、AB と BC ベクトルの内積が
       # 負 (= 進行方向が反転している) の数をカウント。順序が物理的に逆走するほど多くなる。
@@ -64,18 +82,20 @@ namespace :bus_stop_number do
       rows << [
         bus_route.id,
         "#{bus_route.operation_company} #{bus_route.line_name}".strip,
-        result.total_tracks,
-        result.skipped_parallel,
-        result.reversed_count,
-        result.isolated_count,
-        result.max_jump_distance.round(1),
-        result.large_jump_count,
-        result.connection_jump_max.round(1),
-        result.connection_large_jump_count,
-        result.connection_count,
-        result.flat_coords.size,
+        stitch.total_tracks,
+        stitch.skipped_parallel,
+        stitch.reversed_count,
+        stitch.isolated_count,
+        stitch.max_jump_distance.round(1),
+        stitch.large_jump_count,
+        stitch.connection_jump_max.round(1),
+        stitch.connection_large_jump_count,
+        stitch.connection_count,
+        stitch.flat_coords.size,
         ordered.size,
-        backward_turns
+        backward_turns,
+        off_track_count,
+        off_track_max_m.round(1)
       ]
       progress.increment
     end
@@ -88,6 +108,7 @@ namespace :bus_stop_number do
         bus_route_id name total_tracks skipped_parallel reversed_count isolated_count
         max_jump_m large_jump_count connection_jump_max_m connection_large_jump_count
         connection_count flat_coords_size bus_stop_count backward_turns
+        off_track_count off_track_max_m
       ]
       rows.each { |row| csv << row }
     end
@@ -99,6 +120,8 @@ namespace :bus_stop_number do
     routes_with_conn_large_jump = rows.count { |r| r[9] > 0 }
     routes_with_backward = rows.count { |r| r[13] > 0 }
     total_backward = rows.sum { |r| r[13] }
+    routes_with_off_track = rows.count { |r| r[14] > 0 }
+    total_off_track = rows.sum { |r| r[14] }
     puts ""
     puts "Wrote #{out_path}"
     puts "Total routes:                       #{total_routes}"
@@ -108,11 +131,13 @@ namespace :bus_stop_number do
     puts "Routes with >100m connection jump:  #{routes_with_conn_large_jump}"
     puts "Routes with backward turns (採番):  #{routes_with_backward}"
     puts "Total backward turns (合計):        #{total_backward}"
+    puts "Routes with off-track (>#{off_track_threshold_m.to_i}m) bus stops:  #{routes_with_off_track}"
+    puts "Total off-track bus stops (合計):   #{total_off_track}"
     puts ""
     puts "Top 10 by backward_turns (採番の逆走が多い順):"
-    puts "  #{'route_id'.ljust(8)} #{'backward'.ljust(10)} #{'stops'.ljust(7)} #{'conn_jump_m'.ljust(13)} name"
+    puts "  #{'route_id'.ljust(8)} #{'backward'.ljust(10)} #{'off_track'.ljust(10)} #{'stops'.ljust(7)} #{'conn_jump_m'.ljust(13)} name"
     rows.first(10).each do |row|
-      puts "  #{row[0].to_s.ljust(8)} #{row[13].to_s.ljust(10)} #{row[12].to_s.ljust(7)} #{row[8].to_s.ljust(13)} #{row[1]}"
+      puts "  #{row[0].to_s.ljust(8)} #{row[13].to_s.ljust(10)} #{row[14].to_s.ljust(10)} #{row[12].to_s.ljust(7)} #{row[8].to_s.ljust(13)} #{row[1]}"
     end
   end
 
