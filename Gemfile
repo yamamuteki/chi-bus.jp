@@ -96,3 +96,5 @@ gem "rails-erd", group: :development
 gem "kakasi_parser", group: :development
 # kakasi gem の実行時依存（Ruby 4.0 で default gem から外れるため明示）
 gem "fiddle", group: :development
+# data:profile タスクで使用 (sampling profiler、低オーバーヘッド)
+gem "stackprof", require: false, group: :development
