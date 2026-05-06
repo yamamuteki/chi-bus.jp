@@ -89,8 +89,8 @@ namespace :bus_stop_number do
           off_track_max_m = dist if dist > off_track_max_m
         end
 
-        # 採番品質の直接指標: bus_stop_number 順に並んだ連続 3 バス停で、AB と BC ベクトルの内積が
-        # 負 (= 進行方向が反転している) の数をカウント。順序が物理的に逆走するほど多くなる。
+        # 採番品質の指標 (1): バス停物理座標の進行方向反転を数える。街路の鋭角ターンも拾うため
+        # ノイズが多いが、極端に大きい値は採番崩れのサイン。
         ordered = bus_route.bus_route_bus_stops
                             .select { |b| b.bus_stop_number }
                             .sort_by(&:bus_stop_number)
@@ -102,6 +102,31 @@ namespace :bus_stop_number do
           bc_lng = c.bus_stop.longitude - b.bus_stop.longitude
           dot = ab_lat * bc_lat + ab_lng * bc_lng
           backward_turns += 1 if dot < 0
+        end
+
+        # 採番品質の指標 (2): bus_stop_number 順に並べたバス停の raw closest_idx (= flat_coords 上で
+        # 最も近い 1 点の idx) が単調か。減少した場合 = 採番が「軌跡上で前にあるバス停より、
+        # 後ろのバス停を先に並べた」という直接的なバグ。backward_turns より採番ロジック起因の
+        # 問題を切り出しやすい。tolerance=0 で「1 idx でも戻ったらカウント」、5 で SimplifyRb
+        # 起因の小ぶれを許容。
+        idx_inversions = 0
+        flat = stitch.flat_coords
+        if !flat.empty?
+          prev_idx = -1
+          ordered.each do |b|
+            bs = b.bus_stop
+            min_idx = 0
+            min_dist_sq = Float::INFINITY
+            flat.each_with_index do |c, idx|
+              d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
+              if d < min_dist_sq
+                min_dist_sq = d
+                min_idx = idx
+              end
+            end
+            idx_inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
+            prev_idx = min_idx
+          end
         end
 
         rows << [
@@ -120,20 +145,21 @@ namespace :bus_stop_number do
           ordered.size,
           backward_turns,
           off_track_count,
-          off_track_max_m.round(1)
+          off_track_max_m.round(1),
+          idx_inversions
         ]
       end
     end
 
-    # backward_turns 降順 → 採番が壊れている路線を上から見られるようにする。
-    rows.sort_by! { |row| [ -row[13], -row[8] ] }
+    # idx_inversions 降順 → 採番ロジックが壊れている路線を上から見られるようにする。
+    rows.sort_by! { |row| [ -row[16], -row[13] ] }
 
     CSV.open(out_path, "w") do |csv|
       csv << %w[
         bus_route_id name total_tracks skipped_parallel reversed_count isolated_count
         max_jump_m large_jump_count connection_jump_max_m connection_large_jump_count
         connection_count flat_coords_size bus_stop_count backward_turns
-        off_track_count off_track_max_m
+        off_track_count off_track_max_m idx_inversions
       ]
       rows.each { |row| csv << row }
     end
@@ -147,6 +173,8 @@ namespace :bus_stop_number do
     total_backward = rows.sum { |r| r[13] }
     routes_with_off_track = rows.count { |r| r[14] > 0 }
     total_off_track = rows.sum { |r| r[14] }
+    routes_with_inversions = rows.count { |r| r[16] > 0 }
+    total_inversions = rows.sum { |r| r[16] }
     puts ""
     puts "Wrote #{out_path}"
     puts "Total routes:                       #{total_routes}"
@@ -158,11 +186,13 @@ namespace :bus_stop_number do
     puts "Total backward turns (合計):        #{total_backward}"
     puts "Routes with off-track (>#{off_track_threshold_m.to_i}m) bus stops:  #{routes_with_off_track}"
     puts "Total off-track bus stops (合計):   #{total_off_track}"
+    puts "Routes with idx inversions:         #{routes_with_inversions}"
+    puts "Total idx inversions (合計):        #{total_inversions}"
     puts ""
-    puts "Top 10 by backward_turns (採番の逆走が多い順):"
-    puts "  #{'route_id'.ljust(8)} #{'backward'.ljust(10)} #{'off_track'.ljust(10)} #{'stops'.ljust(7)} #{'conn_jump_m'.ljust(13)} name"
+    puts "Top 10 by idx_inversions (採番ロジック起因の逆順が多い順):"
+    puts "  #{'route_id'.ljust(8)} #{'inv'.ljust(5)} #{'backward'.ljust(10)} #{'off_track'.ljust(10)} #{'stops'.ljust(7)} #{'conn_jump_m'.ljust(13)} name"
     rows.first(10).each do |row|
-      puts "  #{row[0].to_s.ljust(8)} #{row[13].to_s.ljust(10)} #{row[14].to_s.ljust(10)} #{row[12].to_s.ljust(7)} #{row[8].to_s.ljust(13)} #{row[1]}"
+      puts "  #{row[0].to_s.ljust(8)} #{row[16].to_s.ljust(5)} #{row[13].to_s.ljust(10)} #{row[14].to_s.ljust(10)} #{row[12].to_s.ljust(7)} #{row[8].to_s.ljust(13)} #{row[1]}"
     end
   end
 
