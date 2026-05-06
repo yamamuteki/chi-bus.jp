@@ -47,8 +47,11 @@ class DataGenerator
     #   後段の BusRoute から `brt[href]` で track を引くために使う。
     # @route_id_by_key: 路線の属性タプル → bus_routes の連番 id。
     #   同一属性の路線が県境で重複定義されているのを 1 行に集約する。
+    # @track_coords_by_id: track_id → 簡略化済み coords 配列。CSV 用の JSON 文字列とは別に
+    #   配列を保持しておき、link_stop_to_routes の最近接判定で使う。
     @track_id_by_gml = {}
     @route_id_by_key = {}
+    @track_coords_by_id = {}
   end
 
   # エントリポイント。XML パース → CSV 書き出しの順に実行。
@@ -96,6 +99,7 @@ class DataGenerator
         updated_at: @now
       }
       @track_id_by_gml[gml_id] = track_id
+      @track_coords_by_id[track_id] = simplified
       progress.increment
     end
   end
@@ -144,10 +148,22 @@ class DataGenerator
   # バス停 XML 側は「種別 + 会社 + 路線名」だけで路線を引きたい。
   # 運賃や備考まで揃わないので、route_id_by_key（7 要素キー）はそのままでは引けず、
   # 3 要素キーの逆引きインデックスをここで作っておく。
+  #
+  # 同一 (種別, 会社, 路線名) が運賃や区間 (note) 違いで複数 BusRoute に分かれているケースが
+  # ある (例: 神奈中の「津01」が長津田駅〜長津田辻 と 奈良井〜奈良井の 2 系統)。バス停 XML 側は
+  # 3 要素しか持たないので、すべての候補 route_id を保持しておき link_stop_to_routes で
+  # 「バス停の座標に最も近い route」を選ぶ。@coords_by_route_id は最近接判定の入力。
   def build_route_lookup
     @route_lookup = @bus_routes.each_with_object({}) do |route, lookup|
       key = [ route[:bus_type], route[:operation_company], route[:line_name] ]
-      lookup[key] ||= route[:id]
+      lookup[key] ||= []
+      lookup[key] << route[:id]
+    end
+
+    @coords_by_route_id = Hash.new { |h, k| h[k] = [] }
+    @bus_route_tracks.each do |track|
+      next unless track[:bus_route_id]
+      @coords_by_route_id[track[:bus_route_id]].concat(@track_coords_by_id[track[:id]] || [])
     end
   end
 
@@ -195,15 +211,23 @@ class DataGenerator
   end
 
   # 1 つの BusStop に複数の路線が紐づく（中間テーブル bus_route_bus_stops に展開）。
+  # 同一 3 要素キーに複数 BusRoute がぶら下がる場合は、バス停の座標に最も近い軌跡を持つ
+  # BusRoute を選ぶ。これがないと最初に登録された 1 件にすべてのバス停が吸われる。
   def link_stop_to_routes(node, bs_id)
+    bs = @bus_stops[bs_id - 1]
+    lat = bs[:latitude]
+    lng = bs[:longitude]
+
     node.css("BusRouteInformation").each do |info|
       key = [
         info.at("busType").text.to_i,
         info.at("busOperationCompany").text,
         info.at("busLineName").text
       ]
-      route_id = @route_lookup[key]
-      next unless route_id
+      candidates = @route_lookup[key]
+      next if candidates.nil? || candidates.empty?
+
+      route_id = pick_nearest_route(candidates, lat, lng)
 
       @bus_route_bus_stops << {
         id: @bus_route_bus_stops.size + 1,
@@ -213,6 +237,21 @@ class DataGenerator
         created_at: @now,
         updated_at: @now
       }
+    end
+  end
+
+  # 候補の BusRoute から、軌跡の最近接 coord までの距離が最小の 1 つを選ぶ。
+  # squared euclidean (lat, lng の度差²乗合算) で十分。track が紐付いていない BusRoute は
+  # 距離 INF 扱いで実質的に最後の候補になる。
+  def pick_nearest_route(candidates, lat, lng)
+    return candidates.first if candidates.size == 1
+    candidates.min_by do |route_id|
+      coords = @coords_by_route_id[route_id]
+      if coords.empty?
+        Float::INFINITY
+      else
+        coords.map { |c| (lat - c[0]) ** 2 + (lng - c[1]) ** 2 }.min
+      end
     end
   end
 
