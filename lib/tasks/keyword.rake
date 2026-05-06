@@ -46,8 +46,8 @@ namespace :keyword do
     # find_each はデフォルトで id ASC でバッチ取得するため、出力 CSV は自動的に id 順に揃う。
     # CSV.open のブロック内で 1 行ずつストリーミング書き出しすることで、5 万件分をメモリに
     # ためずに済む（前バージョンは rows 配列に全件蓄積していた）。
+    $stdout.sync = true
     total = BusStop.count
-    progress = ProgressBar.create(title: "Generate", total: total, format: "%t: %J%% |%B|")
     CSV.open(csv_path, "w", headers: %w[bus_stop_id keyword], write_headers: true) do |csv|
       BusStop.find_each do |bus_stop|
         # kakasi のオプション解説（末尾の文字が「変換先」、それより前の大文字が「変換元」）:
@@ -66,7 +66,6 @@ namespace :keyword do
           KakasiParser.kakasi("-JK -aK -HK -kK -EK -p", bus_stop.name).join(" ")
         ].join(" ")
         csv << [ bus_stop.id, keyword ]
-        progress.increment
       end
     end
     puts "Wrote #{csv_path} (#{total} rows)"

@@ -88,7 +88,6 @@ gem "google-analytics-rails"
 gem "newrelic_rpm"
 gem "sitemap_generator"
 gem "cache_clear_rails"
-gem "ruby-progressbar"
 gem "simplify_rb"
 gem "simplecov", require: false, group: :test
 gem "rails-erd", group: :development
