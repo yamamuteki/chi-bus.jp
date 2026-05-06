@@ -10,94 +10,119 @@
 # 通常のセットアップでは generate は呼ばず、load のみで CSV を反映する。
 # generate は再生成すると順序が変わりうる（CLAUDE.md 参照）。
 namespace :bus_stop_number do
+  # generate / profile から共通に呼ぶ計算本体。CSV に書き出す行配列を返す。
+  #
+  # 6000+ 路線 × N クエリの構成のため、開発環境の SQL クエリログ生成
+  # (BacktraceCleaner + Thread.each_caller_location) がプロファイル上 30%+ を占める。
+  # silence で WARN 以上に絞ると generate 全体が 30% ほど短縮される。
+  def self.compute_assignments
+    rows = []
+    ActiveRecord::Base.logger.silence(Logger::WARN) do
+      BusRoute.find_each do |bus_route|
+        bus_route_bus_stops = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
+        flat_coords = TrackStitcher.call(bus_route.bus_route_tracks.to_a)
+        assignments = BusStopNumberer.call(flat_coords: flat_coords, bus_route_bus_stops: bus_route_bus_stops)
+        rows.concat(assignments)
+      end
+    end
+    rows.sort_by! { |id, _| id }
+    rows
+  end
+
   desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv (does not touch DB)"
   task generate: :environment do
     require "csv"
+    $stdout.sync = true
     csv_path = "db/data/bus_stop_numbers.csv"
 
     # 1. 路線の bus_route_tracks を TrackStitcher で 1 本の座標列に繋ぎ合わせる。
     # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当てる。
-    rows = []
-    progress = ProgressBar.create(title: "Generate", total: BusRoute.count, format: "%t: %J%% |%B|")
+    rows = compute_assignments
 
-    BusRoute.find_each do |bus_route|
-      bus_route_bus_stops = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
-      flat_coords = TrackStitcher.call(bus_route.bus_route_tracks.to_a)
-      assignments = BusStopNumberer.call(flat_coords: flat_coords, bus_route_bus_stops: bus_route_bus_stops)
-      rows.concat(assignments)
-      progress.increment
-    end
-
-    # bus_route_bus_stop_id 順にソートして CSV に書き出す（diff 比較を安定させるため）。
-    rows.sort_by! { |id, _| id }
     CSV.open(csv_path, "w", headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true) do |csv|
       rows.each { |row| csv << row }
     end
     puts "Wrote #{csv_path} (#{rows.size} rows)"
   end
 
+  desc "Profile bus_stop_number:generate via stackprof (writes tmp/bus_stop_number_generate.stackprof)"
+  task profile: :environment do
+    require "stackprof"
+
+    $stdout.sync = true
+    out = "tmp/bus_stop_number_generate.stackprof"
+    StackProf.run(mode: :wall, out: out, interval: 1000) do
+      compute_assignments
+    end
+    puts ""
+    puts "Profile saved to #{out}"
+    puts "View top by self time:   bundle exec stackprof #{out} --text --limit 30"
+    puts "View top by total time:  bundle exec stackprof #{out} --text --total --limit 30"
+  end
+
   desc "Diagnose TrackStitcher quality per route into tmp/bus_stop_number_diagnostics.csv"
   task diagnose: :environment do
     require "csv"
+    $stdout.sync = true
     out_path = "tmp/bus_stop_number_diagnostics.csv"
     rows = []
-    progress = ProgressBar.create(title: "Diagnose", total: BusRoute.count, format: "%t: %J%% |%B|")
 
     # バス停が「軌跡から離れている」とみなす閾値 (m)。本来 10〜30m に収まるはずなので、
     # この値を超えたら「軌跡データが欠損して別エリアに置き去り」のサイン。
     off_track_threshold_m = 200.0
 
-    BusRoute.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
-      stitch = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
-      brbs_list = bus_route.bus_route_bus_stops.to_a
-      number_result = BusStopNumberer.call_with_diagnostics(
-        flat_coords: stitch.flat_coords,
-        bus_route_bus_stops: brbs_list
-      )
+    ActiveRecord::Base.logger.silence(Logger::WARN) do
+      BusRoute.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
+        stitch = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
+        brbs_list = bus_route.bus_route_bus_stops.to_a
+        number_result = BusStopNumberer.call_with_diagnostics(
+          flat_coords: stitch.flat_coords,
+          bus_route_bus_stops: brbs_list
+        )
 
-      # 軌跡から離れたバス停の集計。データ欠損路線を識別する指標。
-      off_track_count = 0
-      off_track_max_m = 0.0
-      number_result.distances_m.each_value do |dist|
-        next if dist.nil?
-        off_track_count += 1 if dist > off_track_threshold_m
-        off_track_max_m = dist if dist > off_track_max_m
+        # 軌跡から離れたバス停の集計。データ欠損路線を識別する指標。
+        off_track_count = 0
+        off_track_max_m = 0.0
+        number_result.distances_m.each_value do |dist|
+          next if dist.nil?
+          off_track_count += 1 if dist > off_track_threshold_m
+          off_track_max_m = dist if dist > off_track_max_m
+        end
+
+        # 採番品質の直接指標: bus_stop_number 順に並んだ連続 3 バス停で、AB と BC ベクトルの内積が
+        # 負 (= 進行方向が反転している) の数をカウント。順序が物理的に逆走するほど多くなる。
+        ordered = bus_route.bus_route_bus_stops
+                            .select { |b| b.bus_stop_number }
+                            .sort_by(&:bus_stop_number)
+        backward_turns = 0
+        ordered.each_cons(3) do |a, b, c|
+          ab_lat = b.bus_stop.latitude - a.bus_stop.latitude
+          ab_lng = b.bus_stop.longitude - a.bus_stop.longitude
+          bc_lat = c.bus_stop.latitude - b.bus_stop.latitude
+          bc_lng = c.bus_stop.longitude - b.bus_stop.longitude
+          dot = ab_lat * bc_lat + ab_lng * bc_lng
+          backward_turns += 1 if dot < 0
+        end
+
+        rows << [
+          bus_route.id,
+          "#{bus_route.operation_company} #{bus_route.line_name}".strip,
+          stitch.total_tracks,
+          stitch.skipped_parallel,
+          stitch.reversed_count,
+          stitch.isolated_count,
+          stitch.max_jump_distance.round(1),
+          stitch.large_jump_count,
+          stitch.connection_jump_max.round(1),
+          stitch.connection_large_jump_count,
+          stitch.connection_count,
+          stitch.flat_coords.size,
+          ordered.size,
+          backward_turns,
+          off_track_count,
+          off_track_max_m.round(1)
+        ]
       end
-
-      # 採番品質の直接指標: bus_stop_number 順に並んだ連続 3 バス停で、AB と BC ベクトルの内積が
-      # 負 (= 進行方向が反転している) の数をカウント。順序が物理的に逆走するほど多くなる。
-      ordered = bus_route.bus_route_bus_stops
-                          .select { |b| b.bus_stop_number }
-                          .sort_by(&:bus_stop_number)
-      backward_turns = 0
-      ordered.each_cons(3) do |a, b, c|
-        ab_lat = b.bus_stop.latitude - a.bus_stop.latitude
-        ab_lng = b.bus_stop.longitude - a.bus_stop.longitude
-        bc_lat = c.bus_stop.latitude - b.bus_stop.latitude
-        bc_lng = c.bus_stop.longitude - b.bus_stop.longitude
-        dot = ab_lat * bc_lat + ab_lng * bc_lng
-        backward_turns += 1 if dot < 0
-      end
-
-      rows << [
-        bus_route.id,
-        "#{bus_route.operation_company} #{bus_route.line_name}".strip,
-        stitch.total_tracks,
-        stitch.skipped_parallel,
-        stitch.reversed_count,
-        stitch.isolated_count,
-        stitch.max_jump_distance.round(1),
-        stitch.large_jump_count,
-        stitch.connection_jump_max.round(1),
-        stitch.connection_large_jump_count,
-        stitch.connection_count,
-        stitch.flat_coords.size,
-        ordered.size,
-        backward_turns,
-        off_track_count,
-        off_track_max_m.round(1)
-      ]
-      progress.increment
     end
 
     # backward_turns 降順 → 採番が壊れている路線を上から見られるようにする。
