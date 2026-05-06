@@ -15,111 +15,16 @@ namespace :bus_stop_number do
     require "csv"
     csv_path = "db/data/bus_stop_numbers.csv"
 
-    # アルゴリズム: 軌跡上の最近接点インデックスでソートする方式。
-    #
-    # 1. 路線の bus_route_tracks を「並行軌跡スキップ + 端点連結」で 1 本の座標列に繋ぎ合わせる。
-    # 2. 各 bus_route_bus_stop について、その停留所と最も近い軌跡座標のインデックスを計算。
-    # 3. インデックス昇順 + bus_route_bus_stop.id を tie-break として安定ソート。
-    # 4. 並べた順に 1, 2, 3, ... と番号を振る。
-    #
-    # 連結ロジックの特徴:
-    #   - 並行軌跡（head/tail が完全一致する複数 track = 行きと戻りで経路が違うパターン）は
-    #     coords 数が多い方を残し、片方をスキップする。これがないと「行き経路の coords + 戻り
-    #     経路の coords」が flat 上で混在し、bus_stop の番号付けが「行きと戻りの停留所が交互」
-    #     のような逆戻り感のある順序になる。
-    #   - 端点同士で繋ぐ貪欲法。Y 字分岐や逆方向 track にも対応するため、head/tail どちらでも
-    #     接続を試す（必要なら反転）。
-    #   - 同距離なら forward (反転なし) を優先。reversed による逆戻りを防ぐ tie-break。
-    stitch_tracks = ->(tracks) {
-      pieces = tracks.map { |t|
-        coords = t.coordinates
-        { id: t.id, coords: coords, head: coords.first, tail: coords.last }
-      }.sort_by { |p| p[:id] }
-
-      return [] if pieces.empty?
-
-      # 並行軌跡スキップ: (head, tail) が完全一致する track が複数あるとき、
-      # coords 数が多い (= より詳細な軌跡) を残す。tie-break は id で決定論化。
-      grouped = pieces.group_by { |p| [ p[:head], p[:tail] ] }
-      pieces = grouped.values.map { |dup| dup.max_by { |p| [ p[:coords].size, -p[:id] ] } }
-                            .sort_by { |p| p[:id] }
-
-      # 開始: head 経度が最小（同点は id で tie-break）の track。
-      start = pieces.min_by { |p| [ p[:head][1], p[:id] ] }
-      used = { start[:id] => true }
-      flat = start[:coords].dup
-
-      # 末尾に最も近い未使用 track を貪欲に連結。head/tail どちらでも接続できる方を選び、
-      # 同距離の場合は forward (反転なし) を優先する。
-      while used.size < pieces.size
-        current_tail = flat.last
-        best_piece = nil
-        best_dist = Float::INFINITY
-        best_reversed = false
-        pieces.each do |p|
-          next if used[p[:id]]
-          d_head = (current_tail[0] - p[:head][0]) ** 2 + (current_tail[1] - p[:head][1]) ** 2
-          d_tail = (current_tail[0] - p[:tail][0]) ** 2 + (current_tail[1] - p[:tail][1]) ** 2
-          this_reversed = d_tail < d_head
-          d_min = this_reversed ? d_tail : d_head
-
-          if d_min < best_dist || (d_min == best_dist && best_reversed && !this_reversed)
-            best_dist = d_min
-            best_piece = p
-            best_reversed = this_reversed
-          end
-        end
-        break unless best_piece
-
-        coords = best_reversed ? best_piece[:coords].reverse : best_piece[:coords]
-        if coords.first == flat.last
-          flat.concat(coords[1..])
-        else
-          flat.concat(coords)
-        end
-        used[best_piece[:id]] = true
-      end
-
-      # 連結できなかった孤立 track (>1km 離れているなど) は経度+id 順で末尾に追加。
-      pieces.reject { |p| used[p[:id]] }
-            .sort_by { |p| [ p[:head][1], p[:id] ] }
-            .each { |p| flat.concat(p[:coords]) }
-
-      flat
-    }
-
+    # 1. 路線の bus_route_tracks を TrackStitcher で 1 本の座標列に繋ぎ合わせる。
+    # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当てる。
     rows = []
     progress = ProgressBar.create(title: "Generate", total: BusRoute.count, format: "%t: %J%% |%B|")
 
     BusRoute.find_each do |bus_route|
       bus_route_bus_stops = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
-      flat_coords = stitch_tracks.call(bus_route.bus_route_tracks.to_a)
-
-      if flat_coords.empty?
-        bus_route_bus_stops.each { |brbs| rows << [ brbs.id, nil ] }
-        progress.increment
-        next
-      end
-
-      # 各 brbs について軌跡上の最近接点のインデックスを計算する。
-      brbs_with_index = bus_route_bus_stops.map do |brbs|
-        bs = brbs.bus_stop
-        min_idx  = 0
-        min_dist = Float::INFINITY
-        flat_coords.each_with_index do |c, idx|
-          d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
-          if d < min_dist
-            min_dist = d
-            min_idx  = idx
-          end
-        end
-        [ brbs.id, min_idx ]
-      end
-
-      brbs_with_index.sort_by! { |id, idx| [ idx, id ] }
-      brbs_with_index.each_with_index do |(brbs_id, _), i|
-        rows << [ brbs_id, i + 1 ]
-      end
+      flat_coords = TrackStitcher.call(bus_route.bus_route_tracks.to_a)
+      assignments = BusStopNumberer.call(flat_coords: flat_coords, bus_route_bus_stops: bus_route_bus_stops)
+      rows.concat(assignments)
       progress.increment
     end
 
@@ -129,6 +34,137 @@ namespace :bus_stop_number do
       rows.each { |row| csv << row }
     end
     puts "Wrote #{csv_path} (#{rows.size} rows)"
+  end
+
+  desc "Diagnose TrackStitcher quality per route into tmp/bus_stop_number_diagnostics.csv"
+  task diagnose: :environment do
+    require "csv"
+    out_path = "tmp/bus_stop_number_diagnostics.csv"
+    rows = []
+    progress = ProgressBar.create(title: "Diagnose", total: BusRoute.count, format: "%t: %J%% |%B|")
+
+    BusRoute.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
+      result = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
+
+      # 採番品質の直接指標: bus_stop_number 順に並んだ連続 3 バス停で、AB と BC ベクトルの内積が
+      # 負 (= 進行方向が反転している) の数をカウント。順序が物理的に逆走するほど多くなる。
+      ordered = bus_route.bus_route_bus_stops
+                          .select { |b| b.bus_stop_number }
+                          .sort_by(&:bus_stop_number)
+      backward_turns = 0
+      ordered.each_cons(3) do |a, b, c|
+        ab_lat = b.bus_stop.latitude - a.bus_stop.latitude
+        ab_lng = b.bus_stop.longitude - a.bus_stop.longitude
+        bc_lat = c.bus_stop.latitude - b.bus_stop.latitude
+        bc_lng = c.bus_stop.longitude - b.bus_stop.longitude
+        dot = ab_lat * bc_lat + ab_lng * bc_lng
+        backward_turns += 1 if dot < 0
+      end
+
+      rows << [
+        bus_route.id,
+        "#{bus_route.operation_company} #{bus_route.line_name}".strip,
+        result.total_tracks,
+        result.skipped_parallel,
+        result.reversed_count,
+        result.isolated_count,
+        result.max_jump_distance.round(1),
+        result.large_jump_count,
+        result.connection_jump_max.round(1),
+        result.connection_large_jump_count,
+        result.connection_count,
+        result.flat_coords.size,
+        ordered.size,
+        backward_turns
+      ]
+      progress.increment
+    end
+
+    # backward_turns 降順 → 採番が壊れている路線を上から見られるようにする。
+    rows.sort_by! { |row| [ -row[13], -row[8] ] }
+
+    CSV.open(out_path, "w") do |csv|
+      csv << %w[
+        bus_route_id name total_tracks skipped_parallel reversed_count isolated_count
+        max_jump_m large_jump_count connection_jump_max_m connection_large_jump_count
+        connection_count flat_coords_size bus_stop_count backward_turns
+      ]
+      rows.each { |row| csv << row }
+    end
+
+    total_routes = rows.size
+    routes_with_skipped = rows.count { |r| r[3] > 0 }
+    routes_with_reversed = rows.count { |r| r[4] > 0 }
+    routes_with_isolated = rows.count { |r| r[5] > 0 }
+    routes_with_conn_large_jump = rows.count { |r| r[9] > 0 }
+    routes_with_backward = rows.count { |r| r[13] > 0 }
+    total_backward = rows.sum { |r| r[13] }
+    puts ""
+    puts "Wrote #{out_path}"
+    puts "Total routes:                       #{total_routes}"
+    puts "Routes with skipped parallel:       #{routes_with_skipped}"
+    puts "Routes with reversed track:         #{routes_with_reversed}"
+    puts "Routes with isolated track:         #{routes_with_isolated}"
+    puts "Routes with >100m connection jump:  #{routes_with_conn_large_jump}"
+    puts "Routes with backward turns (採番):  #{routes_with_backward}"
+    puts "Total backward turns (合計):        #{total_backward}"
+    puts ""
+    puts "Top 10 by backward_turns (採番の逆走が多い順):"
+    puts "  #{'route_id'.ljust(8)} #{'backward'.ljust(10)} #{'stops'.ljust(7)} #{'conn_jump_m'.ljust(13)} name"
+    rows.first(10).each do |row|
+      puts "  #{row[0].to_s.ljust(8)} #{row[13].to_s.ljust(10)} #{row[12].to_s.ljust(7)} #{row[8].to_s.ljust(13)} #{row[1]}"
+    end
+  end
+
+  desc "Inspect a single route's stitch + bus_stop_number assignment (ROUTE_ID=...)"
+  task inspect: :environment do
+    route_id = Integer(ENV.fetch("ROUTE_ID"))
+    bus_route = BusRoute.find(route_id)
+    tracks = bus_route.bus_route_tracks.to_a
+
+    puts "Route ##{bus_route.id}: #{bus_route.operation_company} #{bus_route.line_name}"
+    puts "  bus_type: #{bus_route.bus_type}"
+    puts ""
+
+    puts "Tracks (#{tracks.size}):"
+    tracks.each do |t|
+      puts "  ##{t.id} coords=#{t.coordinates.size} head=#{t.coordinates.first.inspect} tail=#{t.coordinates.last.inspect}"
+    end
+    puts ""
+
+    result = TrackStitcher.call_with_diagnostics(tracks)
+    puts "Stitch summary:"
+    puts "  total_tracks: #{result.total_tracks}, skipped_parallel: #{result.skipped_parallel}"
+    puts "  reversed_count: #{result.reversed_count}, isolated_count: #{result.isolated_count}"
+    puts "  flat_coords_size: #{result.flat_coords.size}"
+    puts "  max_jump (track内+連結部): #{result.max_jump_distance.round(1)}m"
+    puts "  connection_jump_max: #{result.connection_jump_max.round(1)}m  (connection_count=#{result.connection_count})"
+    puts ""
+
+    puts "Stitch steps:"
+    result.stitch_steps.each_with_index do |step, i|
+      flag = step.isolated ? "[isolated]" : (step.reversed ? "[reversed]" : "")
+      puts "  step #{(i + 1).to_s.rjust(2)}: track ##{step.track_id} coords=#{step.coords_size} join=#{step.join_distance.round(1)}m #{flag}"
+    end
+    puts ""
+
+    brbs = bus_route.bus_route_bus_stops.includes(:bus_stop).order(:bus_stop_number, :id).to_a
+    flat = result.flat_coords
+    puts "Bus stops (#{brbs.size}, ordered by bus_stop_number):"
+    brbs.each do |b|
+      bs = b.bus_stop
+      min_idx = 0
+      min_dist = Float::INFINITY
+      flat.each_with_index do |c, idx|
+        d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
+        if d < min_dist
+          min_dist = d
+          min_idx = idx
+        end
+      end
+      num = b.bus_stop_number ? b.bus_stop_number.to_s.rjust(3) : "  -"
+      puts "  ##{num}  brbs=#{b.id.to_s.ljust(8)} stop=#{bs.name.to_s.ljust(28)} closest_idx=#{min_idx.to_s.rjust(5)}/#{flat.size}  lat=#{bs.latitude.round(5)} lng=#{bs.longitude.round(5)}"
+    end
   end
 
   desc "Load bus_stop_number from db/data/bus_stop_numbers.csv"
