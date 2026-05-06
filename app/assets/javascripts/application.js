@@ -42,9 +42,8 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
       });
       document.body.meta.polylines = polylines;
       handler.bounds.extendWith(polylines);
-    } else {
-      handler.bounds.extendWith(markers);
     }
+    handler.bounds.extendWith(markers);
     handler.fitMapToBounds();
     var centerMarker = handler.addMarker({
       "lat": handler.getMap().getCenter().lat(),
