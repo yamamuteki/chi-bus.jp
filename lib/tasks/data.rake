@@ -30,9 +30,6 @@ class DataGenerator
   ROUTE_XML_FORMAT = "db/N07-11_%s.xml".freeze
   STOP_XML_FORMAT  = "db/P11-10_%s-jgd-g.xml".freeze
 
-  # ProgressBar の表示フォーマット。タイトル + パーセント + バー
-  PROGRESS_FORMAT = "%t: %J%% |%B|".freeze
-
   def initialize
     @now = Time.zone.now
 
@@ -83,7 +80,6 @@ class DataGenerator
   #   Float#to_s（最短ラウンドトリップ表現）を使ってサイズを抑える。
   def extract_tracks(doc, xml_path, code)
     nodes = doc.css("Curve")
-    progress = ProgressBar.create(title: "Tracks #{code}", total: nodes.count, format: PROGRESS_FORMAT)
     nodes.each do |node|
       gml_id = "#{xml_path}/#{node['id']}"
       coordinates = parse_coordinates(node.at("posList").text)
@@ -100,8 +96,8 @@ class DataGenerator
       }
       @track_id_by_gml[gml_id] = track_id
       @track_coords_by_id[track_id] = simplified
-      progress.increment
     end
+    puts "  Tracks #{code}: #{nodes.size} curves"
   end
 
   # BusRoute 要素 = 路線属性。
@@ -109,7 +105,6 @@ class DataGenerator
   # ・brt[href] が指す Curve（= bus_route_tracks の行）の bus_route_id を逆向きに埋める
   def extract_routes(doc, xml_path, code)
     nodes = doc.css("BusRoute")
-    progress = ProgressBar.create(title: "Routes #{code}", total: nodes.count, format: PROGRESS_FORMAT)
     nodes.each do |node|
       attrs = {
         bus_type:          node.at("bsc").text.to_i,
@@ -127,8 +122,8 @@ class DataGenerator
       if (track_id = @track_id_by_gml[track_gml])
         @bus_route_tracks[track_id - 1][:bus_route_id] = route_id
       end
-      progress.increment
     end
+    puts "  Routes #{code}: #{nodes.size} routes"
   end
 
   # 既存の同一属性 route があればその id を返し、無ければ新規作成して id を返す。
@@ -173,12 +168,11 @@ class DataGenerator
     pos_hash = build_position_index(doc)
 
     nodes = doc.css("BusStop")
-    progress = ProgressBar.create(title: "Stops #{code}", total: nodes.count, format: PROGRESS_FORMAT)
     nodes.each do |node|
       bs_id = create_bus_stop(node, pos_hash, prefecture)
       link_stop_to_routes(node, bs_id)
-      progress.increment
     end
+    puts "  Stops #{code}: #{nodes.size} stops"
   end
 
   # Point 要素の id → 緯度経度文字列の対応表。
@@ -315,12 +309,31 @@ namespace :data do
   # COPY 文の対象テーブル。順序は外部キー依存順（先に親、最後に子）。
   TABLES = %w[bus_routes bus_route_tracks bus_stops bus_route_bus_stops].freeze
 
+  desc "Profile data:generate via stackprof (writes tmp/data_generate.stackprof)"
+  task profile: :environment do
+    require "nokogiri"
+    require "simplify_rb"
+    require "csv"
+    require "stackprof"
+
+    $stdout.sync = true
+    out = "tmp/data_generate.stackprof"
+    StackProf.run(mode: :wall, out: out, interval: 1000) do
+      DataGenerator.new.run
+    end
+    puts ""
+    puts "Profile saved to #{out}"
+    puts "View top by self time:   bundle exec stackprof #{out} --text --limit 30"
+    puts "View top by total time:  bundle exec stackprof #{out} --text --total --limit 30"
+  end
+
   desc "Generate db/data/*.csv from XML sources"
   task generate: :environment do
     require "nokogiri"
     require "simplify_rb"
     require "csv"
 
+    $stdout.sync = true
     DataGenerator.new.run
   end
 
