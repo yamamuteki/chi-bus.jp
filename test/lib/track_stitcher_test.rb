@@ -50,6 +50,22 @@ class TrackStitcherTest < Minitest::Test
     assert_equal a.coordinates, TrackStitcher.call([ a, b ])
   end
 
+  def test_short_span_parallel_tracks_with_different_coords_dedup_to_longest
+    # head/tail が一致するが coords 数が違う + 端点間距離が短い (≤500m) 場合は、
+    # 解像度違いで描かれた同一の短セグメントとみなして coords 数最大を残し、
+    # 残りは捨てる (alternate にしない)。
+    # 例: 玉野渋川特急線 20585 で track 63935 (3 coords) と 63945 (6 coords) が
+    # head=tail=同一短セグメント (~63m) として並行軌跡判定されてしまい、return phase で
+    # 19km の bridge segment が発生して 玉野営業所前 が誤って末尾に並んだバグ。
+    short  = t(1, [ [ 35.0, 140.0 ], [ 35.0001, 140.0001 ] ])  # 端点間 ~14m
+    longer = t(2, [ [ 35.0, 140.0 ], [ 35.00005, 140.00005 ], [ 35.0001, 140.0001 ] ])
+    result = TrackStitcher.call_with_diagnostics([ short, longer ])
+    # longer のみ採用、short は skipped。
+    assert_equal 1, result.skipped_parallel
+    assert_equal [ 2 ], result.stitch_steps.map(&:track_id)
+    assert_equal longer.coordinates, result.flat_coords
+  end
+
   def test_parallel_alternate_is_deferred_to_return_phase
     # 往復モデル: outbound phase は primary のみ使用。alternate (= 並行軌跡パートナー)
     # は outbound 完了後の return phase で利用される。
@@ -177,6 +193,26 @@ class TrackStitcherTest < Minitest::Test
     # 長い spur は junction で挿入されず、greedy が本線後に末尾近くで取り込む。
     # = c の終端より後ろに spur 終端が出る。
     assert spur_idx > c_end_idx, "long spur should be deferred, not inserted at junction"
+  end
+
+  def test_bridge_segment_indices_record_virtual_joins
+    # track 間が「coord 完全一致せず」連結されたとき、その境界の segment は実体のない
+    # virtual bridge。flat_coords[i] -> flat_coords[i+1] の i を記録する。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.0 ] ])  # 2 coords (segment index 0)
+    b = t(2, [ [ 35.2, 140.0 ], [ 35.3, 140.0 ] ])  # not connected to a
+    result = TrackStitcher.call_with_diagnostics([ a, b ])
+    # flat = [(35.0,140.0), (35.1,140.0), (35.2,140.0), (35.3,140.0)] (4 coords, 3 segments)
+    # segment 0: 真 (a 内)、segment 1: bridge (a 終端 → b 始点)、segment 2: 真 (b 内)
+    assert_equal 4, result.flat_coords.size
+    assert_equal [ 1 ], result.bridge_segment_indices
+  end
+
+  def test_bridge_segment_indices_empty_when_perfectly_joined
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.0 ] ])
+    b = t(2, [ [ 35.1, 140.0 ], [ 35.2, 140.0 ] ])  # a の tail と b の head が完全一致
+    result = TrackStitcher.call_with_diagnostics([ a, b ])
+    # 連結時に重複点を dedup するので bridge segment は発生しない。
+    assert_equal [], result.bridge_segment_indices
   end
 
   def test_result_is_deterministic_regardless_of_input_order

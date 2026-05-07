@@ -20,8 +20,12 @@ namespace :bus_stop_number do
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       BusRoute.find_each do |bus_route|
         bus_route_bus_stops = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
-        flat_coords = TrackStitcher.call(bus_route.bus_route_tracks.to_a)
-        assignments = BusStopNumberer.call(flat_coords: flat_coords, bus_route_bus_stops: bus_route_bus_stops)
+        stitch = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
+        assignments = BusStopNumberer.call(
+          flat_coords: stitch.flat_coords,
+          bus_route_bus_stops: bus_route_bus_stops,
+          bridge_segment_indices: stitch.bridge_segment_indices
+        )
         # line_name の地名ヒントで採番方向を補正。「○○～△△」のように起点/終点の
         # 名前が含まれる路線で、現状の番号が逆向きなら全反転して整える。
         assignments = LineNameOrienter.call(bus_route, bus_route_bus_stops, assignments)
@@ -92,7 +96,8 @@ namespace :bus_stop_number do
         brbs_list = bus_route.bus_route_bus_stops.to_a
         number_result = BusStopNumberer.call_with_diagnostics(
           flat_coords: stitch.flat_coords,
-          bus_route_bus_stops: brbs_list
+          bus_route_bus_stops: brbs_list,
+          bridge_segment_indices: stitch.bridge_segment_indices
         )
 
         # 軌跡から離れたバス停の集計。データ欠損路線を識別する指標。
