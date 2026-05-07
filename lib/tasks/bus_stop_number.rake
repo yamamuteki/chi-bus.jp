@@ -29,6 +29,16 @@ namespace :bus_stop_number do
     rows
   end
 
+  # 2 点間の haversine 距離 (m)。diagnose で連続バス停間の距離評価に使う。
+  HAVERSINE = ->(lat1, lng1, lat2, lng2) {
+    rad = Math::PI / 180.0
+    dlat = (lat2 - lat1) * rad
+    dlng = (lng2 - lng1) * rad
+    a = Math.sin(dlat / 2.0) ** 2 +
+        Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dlng / 2.0) ** 2
+    2.0 * 6_371_000.0 * Math.asin(Math.sqrt(a))
+  }
+
   desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv (does not touch DB)"
   task generate: :environment do
     require "csv"
@@ -106,9 +116,9 @@ namespace :bus_stop_number do
 
         # 採番品質の指標 (2): bus_stop_number 順に並べたバス停の raw closest_idx (= flat_coords 上で
         # 最も近い 1 点の idx) が単調か。減少した場合 = 採番が「軌跡上で前にあるバス停より、
-        # 後ろのバス停を先に並べた」という直接的なバグ。backward_turns より採番ロジック起因の
-        # 問題を切り出しやすい。tolerance=0 で「1 idx でも戻ったらカウント」、5 で SimplifyRb
-        # 起因の小ぶれを許容。
+        # 後ろのバス停を先に並べた」という直接的なバグ。tolerance=5 で SimplifyRb 起因の小ぶれを許容。
+        # 注意: 循環路線では「同じ場所を 2 回通る」ため raw closest_idx が周回終端で巻き戻る。
+        # これは採番バグではないが指標上はカウントされてしまう (= 偽陽性)。
         idx_inversions = 0
         flat = stitch.flat_coords
         if !flat.empty?
@@ -129,6 +139,25 @@ namespace :bus_stop_number do
           end
         end
 
+        # 採番品質の指標 (3): 連続するバス停間の物理距離 (m) に基づく outlier 検出。
+        # idx_inversions と違い循環路線で偽陽性を出さず、固定 1km しきい値と違い高速バス
+        # でも誤検出しない。「普段は短い」のに「ところどころ異常に飛ぶ」を検出する。
+        # threshold = max(500m, median * 3): 路線の中央値の 3 倍 or 絶対 500m のいずれか高い方。
+        distances_m = ordered.each_cons(2).map { |a, b|
+          HAVERSINE.call(a.bus_stop.latitude, a.bus_stop.longitude,
+                         b.bus_stop.latitude, b.bus_stop.longitude)
+        }
+        anomaly_jumps = 0
+        consec_max_m = 0.0
+        median_m = 0.0
+        if !distances_m.empty?
+          consec_max_m = distances_m.max
+          sorted_d = distances_m.sort
+          median_m = sorted_d[sorted_d.size / 2]
+          threshold_m = [ 500.0, median_m * 3 ].max
+          anomaly_jumps = distances_m.count { |d| d > threshold_m }
+        end
+
         rows << [
           bus_route.id,
           "#{bus_route.operation_company} #{bus_route.line_name}".strip,
@@ -146,20 +175,24 @@ namespace :bus_stop_number do
           backward_turns,
           off_track_count,
           off_track_max_m.round(1),
-          idx_inversions
+          idx_inversions,
+          anomaly_jumps,
+          consec_max_m.round(1),
+          median_m.round(1)
         ]
       end
     end
 
-    # idx_inversions 降順 → 採番ロジックが壊れている路線を上から見られるようにする。
-    rows.sort_by! { |row| [ -row[16], -row[13] ] }
+    # anomaly_jumps 降順 → median ベースで「飛び」が異常に多い路線を上から見られる。
+    # 高速バスでも community bus でも一律に「他の隣接停留所に比して異常な飛び」を抽出する。
+    rows.sort_by! { |row| [ -row[17], -row[18] ] }
 
     CSV.open(out_path, "w") do |csv|
       csv << %w[
         bus_route_id name total_tracks skipped_parallel reversed_count isolated_count
         max_jump_m large_jump_count connection_jump_max_m connection_large_jump_count
         connection_count flat_coords_size bus_stop_count backward_turns
-        off_track_count off_track_max_m idx_inversions
+        off_track_count off_track_max_m idx_inversions anomaly_jumps consec_max_m median_m
       ]
       rows.each { |row| csv << row }
     end
@@ -175,6 +208,8 @@ namespace :bus_stop_number do
     total_off_track = rows.sum { |r| r[14] }
     routes_with_inversions = rows.count { |r| r[16] > 0 }
     total_inversions = rows.sum { |r| r[16] }
+    routes_with_anomaly = rows.count { |r| r[17] > 0 }
+    total_anomaly = rows.sum { |r| r[17] }
     puts ""
     puts "Wrote #{out_path}"
     puts "Total routes:                       #{total_routes}"
@@ -188,11 +223,13 @@ namespace :bus_stop_number do
     puts "Total off-track bus stops (合計):   #{total_off_track}"
     puts "Routes with idx inversions:         #{routes_with_inversions}"
     puts "Total idx inversions (合計):        #{total_inversions}"
+    puts "Routes with anomaly jumps:          #{routes_with_anomaly}"
+    puts "Total anomaly jumps (合計):         #{total_anomaly}"
     puts ""
-    puts "Top 10 by idx_inversions (採番ロジック起因の逆順が多い順):"
-    puts "  #{'route_id'.ljust(8)} #{'inv'.ljust(5)} #{'backward'.ljust(10)} #{'off_track'.ljust(10)} #{'stops'.ljust(7)} #{'conn_jump_m'.ljust(13)} name"
-    rows.first(10).each do |row|
-      puts "  #{row[0].to_s.ljust(8)} #{row[16].to_s.ljust(5)} #{row[13].to_s.ljust(10)} #{row[14].to_s.ljust(10)} #{row[12].to_s.ljust(7)} #{row[8].to_s.ljust(13)} #{row[1]}"
+    puts "Top 20 by anomaly_jumps (median 比 3 倍超の飛びが多い順 - 真の採番崩れ):"
+    puts "  #{'route_id'.ljust(8)} #{'anom'.ljust(5)} #{'maxm'.ljust(8)} #{'med'.ljust(7)} #{'inv'.ljust(5)} #{'stops'.ljust(7)} name"
+    rows.first(20).each do |row|
+      puts "  #{row[0].to_s.ljust(8)} #{row[17].to_s.ljust(5)} #{row[18].to_s.ljust(8)} #{row[19].to_s.ljust(7)} #{row[16].to_s.ljust(5)} #{row[12].to_s.ljust(7)} #{row[1]}"
     end
   end
 

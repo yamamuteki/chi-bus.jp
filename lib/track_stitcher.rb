@@ -83,16 +83,33 @@ class TrackStitcher
                           .sort_by { |p| p[:id] }
     skipped_parallel = total - pieces.size
 
-    # 開始: 両端のうち西側経度が最小の track を選び、必要なら反転して使う。
+    # 開始候補の生成: 各 piece について「両端のうち西側に近い側」を起点に使う meta。
     # 旧実装は head 経度だけ見ていたため、coord 順が「東→西」の track が選ばれた場合に
     # 反転されず、flat の前半が逆走 → 後段で大きな U ターンジャンプを生んでいた
     # (例: 都01 で渋谷→青学の 1km ジャンプ)。両端を見ることで起点を確実に最西端にし、
     # 必要なら反転して flat を一貫した方向で組み立てる。
-    start_meta = pieces.map { |p|
+    start_metas = pieces.map { |p|
       west_is_tail = p[:tail][1] < p[:head][1]
-      west_lng = west_is_tail ? p[:tail][1] : p[:head][1]
-      { piece: p, west_lng: west_lng, reversed: west_is_tail }
-    }.min_by { |m| [ m[:west_lng], m[:piece][:id] ] }
+      west_end = west_is_tail ? p[:tail] : p[:head]
+      { piece: p, west_end: west_end, west_lng: west_end[1], reversed: west_is_tail }
+    }
+
+    # 端点重複度の集計。各端点が何個の track に共有されているかを数える。
+    # 「重複度 1」の端点 = 路線の物理的終端 (バス車庫・終点バス停など) と推定。
+    # 終端起点の方が「Y 字の枝に迷い込んで戻れない」ケースを減らせる。
+    endpoint_counts = Hash.new(0)
+    pieces.each do |p|
+      endpoint_counts[p[:head]] += 1
+      endpoint_counts[p[:tail]] += 1
+    end
+
+    # 起点選択の優先順:
+    #   (1) 西側端点が重複度 1 (= 終端) で、かつ最も西の経度
+    #   (2) 該当なし → 従来通り最西端 (= 重複度を問わず最も西の端点)
+    # min_by の sort_key を「重複度 1 を優先するため 0/1 prefix」で表現。
+    start_meta = start_metas.min_by { |m|
+      [ endpoint_counts[m[:west_end]] == 1 ? 0 : 1, m[:west_lng], m[:piece][:id] ]
+    }
 
     start = start_meta[:piece]
     start_reversed = start_meta[:reversed]
