@@ -87,16 +87,18 @@ XML + JSON のソースから `db/data/*.csv` を生成し、CSV を PostgreSQL 
 
 - `db/N07-11_*.xml` — バス路線（**国土交通省「国土数値情報」**、ファイル名末尾 2 桁は JIS 都道府県コード、08〜14 = 茨城〜神奈川）
 - `db/P11-10_*-jgd-g.xml` — バス停
-- `db/bus_stop_number.json` / `db/geocording_data.json` / `db/keywords.json` — 派生データ（路線内停留所順序、逆ジオコーディング結果、kakasi 変換キーワード）の永続化キャッシュ
+- `db/isj/{prefcode}-18.0b/*.csv` — **位置参照情報** (大字・町丁目レベル、CP932 エンコード)。reverse geocoding (lat/lng → 住所) のソース。47 都道府県分。XML 同様 git 管理 (約 17MB)。最新版を取り込み直すときは <https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi> から DL し直す。zip / html / xml は不要なので CSV だけ残す運用。
 
-利用にあたっては国土数値情報ダウンロードサービスの利用規約に従うこと。
+利用にあたっては国土数値情報・位置参照情報ダウンロードサービスの利用規約に従うこと。
 
 タスク：
 
-- `data:generate` — XML をパースし、3 つの JSON をマージして `db/data/*.csv` を出力する。重い処理なのでローカルで実行し、結果を git にコミットして運用する。最新の国土数値情報 XML に差し替えたいときに走らせる。
+- `data:generate` — XML をパースし、`db/data/*.csv` を出力する。重い処理なのでローカルで実行し、結果を git にコミットして運用する。最新の国土数値情報 XML に差し替えたいときに走らせる。
 - `data:load` — `db/data/*.csv` を `COPY FROM STDIN` で DB に流し込む。Heroku でも実行可能で約 1 分。`db/seeds.rb` のガード経由で `bin/rails db:seed` から呼ばれるルートと、直接 `bin/rails data:load` で呼ぶルートの両方がある。
-
-`bus_stop_number:generate` / `geocode:generate` / `keyword:generate`（および対応する `dump` / `restore`）は既存の rake task。各タスクは `generate`（外部 API・kakasi・空間計算など重い処理）→ `dump`（JSON に書き出し）の 2 段で、結果は `db/*.json` に永続化されている。**通常のセットアップ・CI では generate を呼ぶ必要はない**（CSV に統合済み）。`bus_stop_number:generate` は再生成すると順序が変わりうるため、運用上は既存 JSON を尊重する原則。
+- `bus_stop_number:generate` — `db/data/bus_stop_numbers.csv` を生成。重い処理だが結果を git に commit するので CI / 通常セットアップでは load のみ呼べばよい。
+- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv` (city, formatted_address) を生成。所要 10 秒程度。ISJ raw データ (db/isj/) はダウンロード必要、生成 CSV だけ commit する。
+- `keyword:generate` — kakasi で `db/data/keywords.csv` を生成 (kakasi gem 要)。
+- 各 `*:load` — 対応する CSV を bulk UPDATE で DB に投入。
 
 ### テスト
 
