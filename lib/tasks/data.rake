@@ -194,8 +194,8 @@ class DataGenerator
       longitude: pos.split[1].to_f,
       created_at: @now,
       updated_at: @now,
-      # 以下 4 つは後段の JSON マージで埋める
-      postal_code: nil,
+      # prefecture は P11 XML から、city / formatted_address は geocode:generate (ISJ)、
+      # keyword は keyword:generate (kakasi) で別途埋まる。
       prefecture: prefecture,
       city: nil,
       formatted_address: nil,
@@ -262,7 +262,7 @@ class DataGenerator
     write_csv(data_dir, "bus_route_tracks", @bus_route_tracks,
               %w[id gml_id coordinates bus_route_id created_at updated_at])
     write_csv(data_dir, "bus_stops", @bus_stops,
-              %w[id gml_id name latitude longitude created_at updated_at postal_code prefecture city formatted_address keyword])
+              %w[id gml_id name latitude longitude created_at updated_at prefecture city formatted_address keyword])
     write_csv(data_dir, "bus_route_bus_stops", @bus_route_bus_stops,
               %w[id bus_route_id bus_stop_id bus_stop_number created_at updated_at])
   end
