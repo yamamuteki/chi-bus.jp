@@ -49,6 +49,7 @@ namespace :keyword do
     $stdout.sync = true
     total = BusStop.count
     CSV.open(csv_path, "w", headers: %w[bus_stop_id keyword], write_headers: true) do |csv|
+      skipped = 0
       BusStop.find_each do |bus_stop|
         # kakasi のオプション解説（末尾の文字が「変換先」、それより前の大文字が「変換元」）:
         #   -Ja -Ha -Ka -ka -Ea -p
@@ -59,14 +60,25 @@ namespace :keyword do
         #     全部カタカナ(K)に
         #   -p は曖昧な漢字読みの全候補を出力する（読みのバリエーションをまとめてヒットさせるため）
         # `.delete("^")` は kakasi が候補区切りに出す `^` を取り除いて 1 つのフラットな文字列にする処理。
-        keyword = [
-          bus_stop.name,
-          KakasiParser.kakasi("-Ja -Ha -Ka -ka -Ea -p", bus_stop.name).join(" ").delete("^"),
-          KakasiParser.kakasi("-JH -aH -KH -kH -EH -p", bus_stop.name).join(" "),
-          KakasiParser.kakasi("-JK -aK -HK -kK -EK -p", bus_stop.name).join(" ")
-        ].join(" ")
+        keyword =
+          begin
+            [
+              bus_stop.name,
+              KakasiParser.kakasi("-Ja -Ha -Ka -ka -Ea -p", bus_stop.name).join(" ").delete("^"),
+              KakasiParser.kakasi("-JH -aH -KH -kH -EH -p", bus_stop.name).join(" "),
+              KakasiParser.kakasi("-JK -aK -HK -kK -EK -p", bus_stop.name).join(" ")
+            ].join(" ")
+          rescue Encoding::InvalidByteSequenceError, Encoding::UndefinedConversionError
+            # kakasi は内部で CP932 (Windows-31J) を使うため、CP932 で表現できない
+            # 漢字 (例: 箞) を含む停留所名は変換に失敗する。その場合は name 単体を
+            # キーワードとして登録する。漢字での検索は引き続きヒットするが、
+            # ローマ字 / かな経由での検索はできない (極希なケースなので許容)。
+            skipped += 1
+            bus_stop.name
+          end
         csv << [ bus_stop.id, keyword ]
       end
+      puts "  CP932 unconvertible names skipped: #{skipped}" if skipped.positive?
     end
     puts "Wrote #{csv_path} (#{total} rows)"
   end
