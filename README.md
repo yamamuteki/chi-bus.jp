@@ -33,7 +33,7 @@ docker compose run --rm app rails test
 
 ## Docker でのデータ投入
 
-バス停・路線データは `db/data/*.csv` として git 管理されており、PostgreSQL の `COPY` 経由で投入します。約 1 分以内で完了します。
+バス停・路線データは `db/data/*.csv.gz` として git 管理されており、PostgreSQL の `COPY` 経由で投入します。約 1 分以内で完了します。
 
 ```
 docker compose run --rm app bin/rails data:load
@@ -45,7 +45,7 @@ docker compose run --rm app bin/rails data:load
 docker compose run --rm app bin/rails db:seed
 ```
 
-国土交通省「国土数値情報」の XML を最新版に差し替えてデータを再生成したい場合は `data:generate` で `db/data/*.csv` を更新します（重い処理、ローカルで実行して結果を git にコミット）。
+国土交通省「国土数値情報」の XML を最新版に差し替えてデータを再生成したい場合は `data:generate` で `db/data/*.csv.gz` を更新します（重い処理、ローカルで実行して結果を git にコミット）。
 
 ```
 docker compose run --rm app bin/rails data:generate
@@ -61,7 +61,7 @@ docker compose run --rm app bundle exec erd
 
 本番環境は Heroku で、`master` ブランチへの push をトリガーにオートデプロイされます。`develop` で開発し、リリース時に `master` へマージしてください。
 
-DB セットアップとキャッシュクリアは buildpack 方式で行います。`gunpowderlabs/buildpack-ruby-rake-deploy-tasks` が `DEPLOY_TASKS` 環境変数に列挙した rake task を build phase で実行するため、出力は build log に流れて Heroku Activity / GitHub の Deployment 画面から確認できます。`db:prepare` は fresh DB なら `schema:load` + `seed`（`db/seeds.rb` のガード経由で `data:load` が呼ばれて `db/data/*.csv` を `COPY` 投入）まで自動で走り、既存 DB では `migrate` のみ実行されます。
+DB セットアップとキャッシュクリアは buildpack 方式で行います。`gunpowderlabs/buildpack-ruby-rake-deploy-tasks` が `DEPLOY_TASKS` 環境変数に列挙した rake task を build phase で実行するため、出力は build log に流れて Heroku Activity / GitHub の Deployment 画面から確認できます。`db:prepare` は fresh DB なら `schema:load` + `seed`（`db/seeds.rb` のガード経由で `data:load` が呼ばれて `db/data/*.csv.gz` を `COPY` 投入）まで自動で走り、既存 DB では `migrate` のみ実行されます。
 
 初回セットアップが必要な場合：
 
