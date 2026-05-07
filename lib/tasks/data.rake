@@ -51,6 +51,9 @@ class DataGenerator
     @track_id_by_gml = {}
     @route_id_by_key = {}
     @track_coords_by_id = {}
+    # 座標ハッシュ → track_id。県境を跨ぐ Curve は両県の N07 ファイルに
+    # 同一座標で重複登録されているため、ここで dedup する。
+    @track_id_by_coord_hash = {}
   end
 
   # エントリポイント。XML パース → CSV 書き出しの順に実行。
@@ -82,11 +85,24 @@ class DataGenerator
   #   Float#to_s（最短ラウンドトリップ表現）を使ってサイズを抑える。
   def extract_tracks(doc, xml_path, code)
     nodes = doc.css("Curve")
+    added = 0
+    deduped = 0
     nodes.each do |node|
       gml_id = "#{xml_path}/#{node['id']}"
       coordinates = parse_coordinates(node.at("posList").text)
-      simplified  = simplify_coordinates(coordinates)
 
+      # 県境を跨ぐ Curve は隣県の N07 ファイルに同一座標で重複登録されている
+      # (実測 7 県分 26,862 curves 中 6,504 件 ≒ 24% が重複)。ここで座標 hash で dedup
+      # して bus_route_tracks の行数を減らす。後段の extract_routes が brt[href] で
+      # gml_id 経由で track を引くため、@track_id_by_gml は dedup 後の track_id を指す。
+      coord_hash = coordinates.hash
+      if (existing_track_id = @track_id_by_coord_hash[coord_hash])
+        @track_id_by_gml[gml_id] = existing_track_id
+        deduped += 1
+        next
+      end
+
+      simplified = simplify_coordinates(coordinates)
       track_id = @bus_route_tracks.size + 1
       @bus_route_tracks << {
         id: track_id,
@@ -97,9 +113,11 @@ class DataGenerator
         updated_at: @now
       }
       @track_id_by_gml[gml_id] = track_id
+      @track_id_by_coord_hash[coord_hash] = track_id
       @track_coords_by_id[track_id] = simplified
+      added += 1
     end
-    puts "  Tracks #{code}: #{nodes.size} curves"
+    puts "  Tracks #{code}: #{nodes.size} curves (#{added} added, #{deduped} dedup)"
   end
 
   # BusRoute 要素 = 路線属性。
