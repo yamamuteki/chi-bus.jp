@@ -1,6 +1,6 @@
 # chi-bus.jp
 
-千葉・東京・神奈川・埼玉（および茨城・栃木・群馬の一部）を対象とした、バス停と路線情報を提供する Web サービスです。
+全国 47 都道府県のバス停と路線情報を提供する Web サービスです。
 
 - [https://www.chi-bus.jp](https://www.chi-bus.jp)
 - [ERD](./erd.pdf)
