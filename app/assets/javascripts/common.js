@@ -112,18 +112,24 @@
     $(document).on("click", SELECTOR_SEARCH_MAP_CENTER, handleSearchMapCenterClick);
 
     // 路線リンク ↔ polyline の連動
+    // ※ reset 側に "click" も含めるのは iOS / Android のタッチ端末対応。
+    //    touch では tap で `mouseenter` (合成) → `click` の順に発火するが、
+    //    `mouseleave` は安定的に発火しない端末がある。click をフックしておくと
+    //    タップで一瞬 highlight された後に確実にリセットでき、ハイライトが
+    //    居残るのを防げる。クリックではページ遷移も走るが、ハンドラが先に
+    //    実行されるので「reset → 遷移」の順で副作用なし。
     $(document).on("mouseenter", SELECTOR_BUS_ROUTE_LINK, function() {
       setBusRouteHighlight($(this), true);
     });
-    $(document).on("mouseleave", SELECTOR_BUS_ROUTE_LINK, function() {
+    $(document).on("mouseleave click", SELECTOR_BUS_ROUTE_LINK, function() {
       setBusRouteHighlight($(this), false);
     });
 
-    // 停留所リンク ↔ marker の連動
+    // 停留所リンク ↔ marker の連動 (同様に click も含める)
     $(document).on("mouseenter", SELECTOR_BUS_STOP_LINK, function() {
       setBusStopAnimation($(this), google.maps.Animation.BOUNCE);
     });
-    $(document).on("mouseleave", SELECTOR_BUS_STOP_LINK, function() {
+    $(document).on("mouseleave click", SELECTOR_BUS_STOP_LINK, function() {
       setBusStopAnimation($(this), null);
     });
   });
