@@ -59,6 +59,23 @@ class TrackStitcherTest < Minitest::Test
     assert_equal [ 35.0, 140.0 ], result.first
   end
 
+  def test_starts_from_terminal_even_when_terminal_is_east_end_of_piece
+    # PR #50 は piece の westmost 端点のみを終端候補としていたため、終端が piece の
+    # east 側にある場合を見逃していた。両端を独立に評価することで対応する。
+    # 設計: a は head=東、tail=西、tail は junction (degree 3)、head は terminal (degree 1)。
+    #       b, c は junction から伸びる別 piece (head が junction)。
+    # 全体の westmost 端点は a の tail (junction) だが、a の head (= 東側) も terminal。
+    # 旧ロジック: a の west_end=tail (junction, degree 3) → 終端優先 fail → 全 piece の最西を選ぶ。
+    # 新ロジック: a の head が terminal なので、それを起点に検討する。
+    a = t(1, [ [ 35.0,  140.2 ], [ 35.0, 140.0 ] ])  # head=東 terminal, tail=西 junction
+    b = t(2, [ [ 35.0,  140.0 ], [ 35.0, 139.9 ] ])  # head=junction, tail=terminal
+    c = t(3, [ [ 35.0,  140.0 ], [ 35.0, 139.95 ] ])  # head=junction, tail=terminal
+    result = TrackStitcher.call([ a, b, c ])
+    # 終端候補: a head=140.2, b tail=139.9, c tail=139.95。最西は b tail (139.9)。
+    # 起点 = b tail。b reversed (tail が起点なので)。flat 第 1 coord = b の tail。
+    assert_equal [ 35.0, 139.9 ], result.first
+  end
+
   def test_starts_from_degree_one_endpoint_when_available
     # 端点重複度 1 = 路線の物理的終端と推定。terminal がある場合は最西端 terminal を優先する。
     # 中央 (35.05, 140.05) を 3 track が共有 = degree 3 (重複)。terminal 候補は a の 140.0、

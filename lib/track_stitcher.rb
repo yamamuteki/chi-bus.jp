@@ -96,17 +96,6 @@ class TrackStitcher
                           .sort_by { |p| p[:id] }
     skipped_parallel = total - pieces.size
 
-    # 開始候補の生成: 各 piece について「両端のうち西側に近い側」を起点に使う meta。
-    # 旧実装は head 経度だけ見ていたため、coord 順が「東→西」の track が選ばれた場合に
-    # 反転されず、flat の前半が逆走 → 後段で大きな U ターンジャンプを生んでいた
-    # (例: 都01 で渋谷→青学の 1km ジャンプ)。両端を見ることで起点を確実に最西端にし、
-    # 必要なら反転して flat を一貫した方向で組み立てる。
-    start_metas = pieces.map { |p|
-      west_is_tail = p[:tail][1] < p[:head][1]
-      west_end = west_is_tail ? p[:tail] : p[:head]
-      { piece: p, west_end: west_end, west_lng: west_end[1], reversed: west_is_tail }
-    }
-
     # 端点重複度の集計。各端点が何個の track に共有されているかを数える。
     # 「重複度 1」の端点 = 路線の物理的終端 (バス車庫・終点バス停など) と推定。
     # 終端起点の方が「Y 字の枝に迷い込んで戻れない」ケースを減らせる。
@@ -117,12 +106,29 @@ class TrackStitcher
     end
 
     # 起点選択の優先順:
-    #   (1) 西側端点が重複度 1 (= 終端) で、かつ最も西の経度
-    #   (2) 該当なし → 従来通り最西端 (= 重複度を問わず最も西の端点)
-    # min_by の sort_key を「重複度 1 を優先するため 0/1 prefix」で表現。
-    start_meta = start_metas.min_by { |m|
-      [ endpoint_counts[m[:west_end]] == 1 ? 0 : 1, m[:west_lng], m[:piece][:id] ]
-    }
+    #   (1) 全 piece の両端を走査し、重複度 1 (= 終端) の端点の中で最も西の経度を起点に。
+    #   (2) 該当なし (純粋循環) → 各 piece の westmost 端点の中で最西を起点に fallback。
+    #
+    # PR #50 は各 piece の west_end のみを終端候補としていたため、終端が piece の
+    # east 側にある場合 (例: 横浜浅83 の 12160 tail at lng 139.5751、head は 139.5742)
+    # を見逃していた。両端を独立に評価することで対応する。
+    terminal_starts = []
+    pieces.each do |p|
+      terminal_starts << { piece: p, lng: p[:head][1], reversed: false } if endpoint_counts[p[:head]] == 1
+      terminal_starts << { piece: p, lng: p[:tail][1], reversed: true } if endpoint_counts[p[:tail]] == 1
+    end
+
+    start_meta = if !terminal_starts.empty?
+      terminal_starts.min_by { |m| [ m[:lng], m[:piece][:id] ] }
+    else
+      # 終端が無い場合のみ、各 piece の westmost 端点を候補に最西選定。
+      # piece の west_end を起点にすることで coord 順が東→西の track でも反転して使える。
+      pieces.map { |p|
+        west_is_tail = p[:tail][1] < p[:head][1]
+        west_lng = west_is_tail ? p[:tail][1] : p[:head][1]
+        { piece: p, lng: west_lng, reversed: west_is_tail }
+      }.min_by { |m| [ m[:lng], m[:piece][:id] ] }
+    end
 
     start = start_meta[:piece]
     start_reversed = start_meta[:reversed]
