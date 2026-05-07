@@ -46,6 +46,14 @@ class TrackStitcher
   # 連続 coord 間でこれ以上飛んでいたら「track の連結部に不連続がある」サインとみなす。
   LARGE_JUMP_THRESHOLD_M = 100.0
 
+  # leaf spur 挿入の最大長さ (m, 端点間直線距離)。これより長い spur は「本線の一部」
+  # の可能性が高いので spur 挿入対象外とし、通常の greedy に任せる。
+  # 例: 旭市 飯岡 (58) の track #174 は 4.3km の主要セグメントだが head/tail が
+  # たまたま degree 3 / degree 1 の関係で「leaf spur」判定になる。挿入してしまうと
+  # 戻るのに 4km 級のジャンプが発生し採番が崩れる。500m は典型的なバス停間距離の
+  # 数倍 = 「side branch にしては長過ぎる」を区別する目安。
+  SPUR_MAX_LENGTH_M = 500.0
+
   def self.call(tracks)
     new(tracks).run.flat_coords
   end
@@ -142,6 +150,10 @@ class TrackStitcher
             next
           end
           next unless endpoint_counts[other] == 1
+          # 端点間直線距離が SPUR_MAX_LENGTH_M を超える track は本線の一部と推定し
+          # spur 挿入の対象外とする (= 通常 greedy で扱う)。
+          spur_length = haversine_meters(p[:head][0], p[:head][1], p[:tail][0], p[:tail][1])
+          next if spur_length > SPUR_MAX_LENGTH_M
           spur_candidates << p
         end
         break if spur_candidates.empty?

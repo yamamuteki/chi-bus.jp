@@ -102,6 +102,26 @@ class TrackStitcherTest < Minitest::Test
     assert spur_idx < c_end_idx, "spur should be inserted before route end"
   end
 
+  def test_long_spur_is_not_inserted_at_junction
+    # 物理的に長い「leaf spur」は本線の一部と推定し挿入対象外。
+    # SPUR_MAX_LENGTH_M = 500m を超える spur s (~1.1km) は通常 greedy で扱われる。
+    # 設計: a → b → c が本線、s は junction (35.0, 140.1) から 1.1km 北の終端へ。
+    # spur 挿入が効くなら結果は a → s → b → c (s が中間) だが、長すぎるので無効化されて
+    # a → b → c → s (s が末尾) のほうが起こりやすい。「s が末尾に置かれること」を確認する
+    # ことで「長い spur は挿入されない」挙動を検証する。
+    a = t(1, [ [ 35.0,  140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0,  140.1 ], [ 35.0, 140.2 ] ])
+    c = t(3, [ [ 35.0,  140.2 ], [ 35.0, 140.3 ] ])
+    s = t(4, [ [ 35.0,  140.1 ], [ 35.01, 140.1 ] ])  # 約 1.1km, 500m 超
+    result = TrackStitcher.call([ a, b, c, s ])
+    spur_idx = result.index { |coord| coord == [ 35.01, 140.1 ] }
+    c_end_idx = result.index { |coord| coord == [ 35.0, 140.3 ] }
+    assert spur_idx, "spur coord should still appear in flat (just not inserted at junction)"
+    # 長い spur は junction で挿入されず、greedy が本線後に末尾近くで取り込む。
+    # = c の終端より後ろに spur 終端が出る。
+    assert spur_idx > c_end_idx, "long spur should be deferred, not inserted at junction"
+  end
+
   def test_result_is_deterministic_regardless_of_input_order
     a = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
     b = t(2, [ [ 35.1, 140.1 ], [ 35.2, 140.2 ] ])
