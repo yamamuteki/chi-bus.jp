@@ -55,7 +55,7 @@ docker-compose run --rm app bin/brakeman                   # security scan
 
 CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_js / test の 4 ジョブ構成で、`master` / `develop` への push と全 PR でトリガー。
 
-新規環境では `bin/rails db:seed` でデータが未投入なら自動的に `data:load` が走り、`db/data/*.csv` から PostgreSQL の `COPY` で 1 分以内に投入される。
+新規環境では `bin/rails db:seed` でデータが未投入なら自動的に `data:load` が走り、`db/data/*.csv.gz` から PostgreSQL の `COPY` で 1 分以内に投入される。
 
 ## アーキテクチャ
 
@@ -81,23 +81,23 @@ CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_
 
 ### データ構築パイプライン
 
-XML + JSON のソースから `db/data/*.csv` を生成し、CSV を PostgreSQL の `COPY FROM STDIN` で投入する 2 段構成。
+XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮した CSV を PostgreSQL の `COPY FROM STDIN` で投入する 2 段構成。圧縮しているのは GitHub の 100MB ファイル上限を超える `keywords.csv` (生で 270MB) を git 管理するため。load 側は `Zlib::GzipReader` で逐次解凍しながら `put_copy_data` する。
 
 ソース：
 
-- `db/ksj/n07/N07-11_*.xml.gz` — バス路線（**国土交通省「国土数値情報」**、ファイル名末尾 2 桁は JIS 都道府県コード、08〜14 = 茨城〜神奈川）。生 XML が大きいので gzip 圧縮して git 管理 (`open_xml` で透過解凍)
-- `db/ksj/p11/P11-10_*-jgd-g.xml.gz` — バス停
+- `db/ksj/n07/N07-11_*.xml.gz` — バス路線（**国土交通省「国土数値情報」**、ファイル名末尾 2 桁は JIS 都道府県コード、47 都道府県分）。生 XML が大きいので gzip 圧縮して git 管理 (`open_xml` で透過解凍)。県境を跨ぐ Curve は隣県 N07 にも同一座標で重複登録されているため `data:generate` 側で座標 hash dedup している
+- `db/ksj/p11/P11-10_*-jgd-g.xml.gz` — バス停（47 都道府県分）
 - `db/isj/{prefcode}-18.0b/*.csv` — **位置参照情報** (大字・町丁目レベル、CP932 エンコード)。reverse geocoding (lat/lng → 住所) のソース。47 都道府県分。XML 同様 git 管理 (約 17MB)。最新版を取り込み直すときは <https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi> から DL し直す。zip / html / xml は不要なので CSV だけ残す運用。
 
 利用にあたっては国土数値情報・位置参照情報ダウンロードサービスの利用規約に従うこと。
 
 タスク：
 
-- `data:generate` — XML をパースし、`db/data/*.csv` を出力する。重い処理なのでローカルで実行し、結果を git にコミットして運用する。最新の国土数値情報 XML に差し替えたいときに走らせる。
-- `data:load` — `db/data/*.csv` を `COPY FROM STDIN` で DB に流し込む。Heroku でも実行可能で約 1 分。`db/seeds.rb` のガード経由で `bin/rails db:seed` から呼ばれるルートと、直接 `bin/rails data:load` で呼ぶルートの両方がある。
-- `bus_stop_number:generate` — `db/data/bus_stop_numbers.csv` を生成。重い処理だが結果を git に commit するので CI / 通常セットアップでは load のみ呼べばよい。
-- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv` (city, formatted_address) を生成。所要 10 秒程度。ISJ raw データ (db/isj/) はダウンロード必要、生成 CSV だけ commit する。
-- `keyword:generate` — kakasi で `db/data/keywords.csv` を生成 (kakasi gem 要)。
+- `data:generate` — XML をパースし、`db/data/*.csv.gz` を出力する。重い処理なのでローカルで実行し、結果を git にコミットして運用する。最新の国土数値情報 XML に差し替えたいときに走らせる。
+- `data:load` — `db/data/*.csv.gz` を `COPY FROM STDIN` で DB に流し込む。Heroku でも実行可能で約 1 分。`db/seeds.rb` のガード経由で `bin/rails db:seed` から呼ばれるルートと、直接 `bin/rails data:load` で呼ぶルートの両方がある。
+- `bus_stop_number:generate` — `db/data/bus_stop_numbers.csv.gz` を生成。重い処理だが結果を git に commit するので CI / 通常セットアップでは load のみ呼べばよい。
+- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv.gz` (city, formatted_address) を生成。所要 10 秒程度。ISJ raw データ (db/isj/) はダウンロード必要、生成 CSV だけ commit する。
+- `keyword:generate` — kakasi で `db/data/keywords.csv.gz` を生成 (kakasi gem 要)。
 - 各 `*:load` — 対応する CSV を bulk UPDATE で DB に投入。
 
 ### テスト

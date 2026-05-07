@@ -1,5 +1,5 @@
 # db/ksj/n07/N07-11_*.xml.gz（路線）と db/ksj/p11/P11-10_*-jgd-g.xml.gz（バス停）を解析して
-# db/data/*.csv を生成・DB に投入する rake タスク。
+# db/data/*.csv.gz を生成・DB に投入する rake タスク。
 #
 # データソースは「国土数値情報」（国土交通省）。XML は重く、`generate` は
 # ローカルで実行して結果（CSV）を git にコミットする運用。`load` は CSV を
@@ -13,16 +13,23 @@
 # やや煩雑になるため。lib/tasks/ は Rails の autoload 対象外なので、トップレベルに
 # クラスを置いても eager_load 衝突は起きない。
 class DataGenerator
-  # 国土数値情報の都道府県コード（08〜14 = 茨城〜神奈川）と表示用の県名。
-  # 北関東 3 県を含むのは、隣県をまたぐ路線・バス停を漏らさず取り込むため。
+  # 国土数値情報の都道府県コード（JIS X 0401, 01〜47）と表示用の県名。
+  # 全国 47 都道府県分を揃える。県境を跨ぐ路線の Curve は同一座標で
+  # 両県の N07 ファイルに重複登録されているが、`extract_tracks` 内で
+  # 座標ハッシュベースの dedup により 1 行に集約する。
   PREFECTURES = {
-    "12" => "千葉県",
-    "13" => "東京都",
-    "14" => "神奈川県",
-    "11" => "埼玉県",
-    "08" => "茨城県",
-    "09" => "栃木県",
-    "10" => "群馬県"
+    "01" => "北海道",   "02" => "青森県",   "03" => "岩手県",   "04" => "宮城県",
+    "05" => "秋田県",   "06" => "山形県",   "07" => "福島県",   "08" => "茨城県",
+    "09" => "栃木県",   "10" => "群馬県",   "11" => "埼玉県",   "12" => "千葉県",
+    "13" => "東京都",   "14" => "神奈川県", "15" => "新潟県",   "16" => "富山県",
+    "17" => "石川県",   "18" => "福井県",   "19" => "山梨県",   "20" => "長野県",
+    "21" => "岐阜県",   "22" => "静岡県",   "23" => "愛知県",   "24" => "三重県",
+    "25" => "滋賀県",   "26" => "京都府",   "27" => "大阪府",   "28" => "兵庫県",
+    "29" => "奈良県",   "30" => "和歌山県", "31" => "鳥取県",   "32" => "島根県",
+    "33" => "岡山県",   "34" => "広島県",   "35" => "山口県",   "36" => "徳島県",
+    "37" => "香川県",   "38" => "愛媛県",   "39" => "高知県",   "40" => "福岡県",
+    "41" => "佐賀県",   "42" => "長崎県",   "43" => "熊本県",   "44" => "大分県",
+    "45" => "宮崎県",   "46" => "鹿児島県", "47" => "沖縄県"
   }.freeze
 
   # XML のファイル命名規則。`%s` に都道府県コードを差し込んで使う。
@@ -287,9 +294,13 @@ class DataGenerator
               %w[id bus_route_id bus_stop_id bus_stop_number created_at updated_at])
   end
 
+  # gzip 圧縮した CSV を出力する。GitHub の 100MB ファイル上限を超える
+  # `keywords.csv` (生で 270MB) があるため、CSV は全て .csv.gz として
+  # 永続化する運用。`data:load` 等は対応する Zlib::GzipReader で読む。
   def write_csv(dir, name, rows, columns)
-    path = dir.join("#{name}.csv")
-    CSV.open(path, "w", headers: columns, write_headers: true) do |csv|
+    path = dir.join("#{name}.csv.gz")
+    Zlib::GzipWriter.open(path) do |gz|
+      csv = CSV.new(gz, headers: columns, write_headers: true)
       rows.each { |row| csv << columns.map { |c| row[c.to_sym] } }
     end
     puts "Wrote #{path} (#{rows.size} rows)"
@@ -350,7 +361,7 @@ namespace :data do
     puts "View top by total time:  bundle exec stackprof #{out} --text --total --limit 30"
   end
 
-  desc "Generate db/data/*.csv from XML sources"
+  desc "Generate db/data/*.csv.gz from XML sources"
   task generate: :environment do
     require "nokogiri"
     require "simplify_rb"
@@ -361,8 +372,9 @@ namespace :data do
     DataGenerator.new.run
   end
 
-  desc "Load db/data/*.csv into the database (TRUNCATE + COPY FROM STDIN)"
+  desc "Load db/data/*.csv.gz into the database (TRUNCATE + COPY FROM STDIN)"
   task load: :environment do
+    require "zlib"
     raw = ActiveRecord::Base.connection.raw_connection
 
     ActiveRecord::Base.transaction do
@@ -371,16 +383,16 @@ namespace :data do
       raw.exec("TRUNCATE TABLE #{TABLES.join(', ')} RESTART IDENTITY CASCADE")
 
       TABLES.each do |table|
-        path = Rails.root.join("db/data/#{table}.csv")
+        path = Rails.root.join("db/data/#{table}.csv.gz")
         raise "Missing #{path}. Run 'rails data:generate' first." unless path.exist?
 
         # CSV のヘッダ行を読み、列順を COPY 文に明示する。
         # COPY ... CSV HEADER はヘッダを読み飛ばすだけで列マッピングをしないため、
         # CSV と DB の物理カラム順が異なる環境（schema:load 由来など）で壊れる。
-        columns = File.open(path, "r") { |f| f.readline.chomp.split(",") }
+        columns = Zlib::GzipReader.open(path) { |f| f.readline.chomp.split(",") }
 
         raw.copy_data("COPY #{table} (#{columns.join(', ')}) FROM STDIN WITH CSV HEADER") do
-          File.open(path, "r") do |f|
+          Zlib::GzipReader.open(path) do |f|
             while (line = f.gets)
               raw.put_copy_data(line)
             end

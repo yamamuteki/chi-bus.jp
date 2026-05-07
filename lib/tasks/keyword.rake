@@ -3,15 +3,16 @@
 # generate: kakasi で停留所名を漢字 → ローマ字 / ひらがな / カタカナに変換し、空白区切りで連結して保存。
 #           この文字列が `lower(...) LIKE lower(...)` の検索対象となり、漢字・かな・ローマ字の
 #           どの入力でもヒットするようになる（BusStopsController#index の検索ロジック）。
-# load:     db/data/keywords.csv を DB に bulk UPDATE で投入する。
+# load:     db/data/keywords.csv.gz を DB に bulk UPDATE で投入する。
 #
 # generate は kakasi_parser gem と OS の kakasi コマンドを要求する。
 # Dockerfile.dev に kakasi を入れているので Docker 環境ならそのまま動く。
 # 通常のセットアップでは generate ではなく load を使う（kakasi 実行時間の節約）。
 namespace :keyword do
-  desc "Load keywords from db/data/keywords.csv"
+  desc "Load keywords from db/data/keywords.csv.gz"
   task load: :environment do
-    csv_path = "db/data/keywords.csv"
+    require "zlib"
+    csv_path = "db/data/keywords.csv.gz"
     raise "Missing #{csv_path}. Run 'rails keyword:generate' first." unless File.exist?(csv_path)
 
     raw = ActiveRecord::Base.connection.raw_connection
@@ -20,7 +21,7 @@ namespace :keyword do
       raw.exec("CREATE TEMP TABLE _tmp_keywords (bus_stop_id INTEGER, keyword TEXT) ON COMMIT DROP")
 
       raw.copy_data("COPY _tmp_keywords (bus_stop_id, keyword) FROM STDIN WITH CSV HEADER") do
-        File.open(csv_path, "r") do |f|
+        Zlib::GzipReader.open(csv_path) do |f|
           while (line = f.gets)
             raw.put_copy_data(line)
           end
@@ -38,17 +39,19 @@ namespace :keyword do
     puts "Loaded #{csv_path}"
   end
 
-  desc "Generate keywords into db/data/keywords.csv (does not touch DB)"
+  desc "Generate keywords into db/data/keywords.csv.gz (does not touch DB)"
   task generate: :environment do
     require "csv"
-    csv_path = "db/data/keywords.csv"
+    require "zlib"
+    csv_path = "db/data/keywords.csv.gz"
 
     # find_each はデフォルトで id ASC でバッチ取得するため、出力 CSV は自動的に id 順に揃う。
-    # CSV.open のブロック内で 1 行ずつストリーミング書き出しすることで、5 万件分をメモリに
-    # ためずに済む（前バージョンは rows 配列に全件蓄積していた）。
+    # GzipWriter のブロック内で 1 行ずつストリーミング書き出しすることで、25 万件分を
+    # メモリにためずに済む（前バージョンは rows 配列に全件蓄積していた）。
     $stdout.sync = true
     total = BusStop.count
-    CSV.open(csv_path, "w", headers: %w[bus_stop_id keyword], write_headers: true) do |csv|
+    Zlib::GzipWriter.open(csv_path) do |gz|
+      csv = CSV.new(gz, headers: %w[bus_stop_id keyword], write_headers: true)
       skipped = 0
       BusStop.find_each do |bus_stop|
         # kakasi のオプション解説（末尾の文字が「変換先」、それより前の大文字が「変換元」）:
