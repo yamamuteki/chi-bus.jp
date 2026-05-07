@@ -30,9 +30,6 @@ class DataGenerator
   ROUTE_XML_FORMAT = "db/N07-11_%s.xml".freeze
   STOP_XML_FORMAT  = "db/P11-10_%s-jgd-g.xml".freeze
 
-  # ProgressBar の表示フォーマット。タイトル + パーセント + バー
-  PROGRESS_FORMAT = "%t: %J%% |%B|".freeze
-
   def initialize
     @now = Time.zone.now
 
@@ -47,8 +44,11 @@ class DataGenerator
     #   後段の BusRoute から `brt[href]` で track を引くために使う。
     # @route_id_by_key: 路線の属性タプル → bus_routes の連番 id。
     #   同一属性の路線が県境で重複定義されているのを 1 行に集約する。
+    # @track_coords_by_id: track_id → 簡略化済み coords 配列。CSV 用の JSON 文字列とは別に
+    #   配列を保持しておき、link_stop_to_routes の最近接判定で使う。
     @track_id_by_gml = {}
     @route_id_by_key = {}
+    @track_coords_by_id = {}
   end
 
   # エントリポイント。XML パース → CSV 書き出しの順に実行。
@@ -80,7 +80,6 @@ class DataGenerator
   #   Float#to_s（最短ラウンドトリップ表現）を使ってサイズを抑える。
   def extract_tracks(doc, xml_path, code)
     nodes = doc.css("Curve")
-    progress = ProgressBar.create(title: "Tracks #{code}", total: nodes.count, format: PROGRESS_FORMAT)
     nodes.each do |node|
       gml_id = "#{xml_path}/#{node['id']}"
       coordinates = parse_coordinates(node.at("posList").text)
@@ -96,8 +95,9 @@ class DataGenerator
         updated_at: @now
       }
       @track_id_by_gml[gml_id] = track_id
-      progress.increment
+      @track_coords_by_id[track_id] = simplified
     end
+    puts "  Tracks #{code}: #{nodes.size} curves"
   end
 
   # BusRoute 要素 = 路線属性。
@@ -105,7 +105,6 @@ class DataGenerator
   # ・brt[href] が指す Curve（= bus_route_tracks の行）の bus_route_id を逆向きに埋める
   def extract_routes(doc, xml_path, code)
     nodes = doc.css("BusRoute")
-    progress = ProgressBar.create(title: "Routes #{code}", total: nodes.count, format: PROGRESS_FORMAT)
     nodes.each do |node|
       attrs = {
         bus_type:          node.at("bsc").text.to_i,
@@ -123,8 +122,8 @@ class DataGenerator
       if (track_id = @track_id_by_gml[track_gml])
         @bus_route_tracks[track_id - 1][:bus_route_id] = route_id
       end
-      progress.increment
     end
+    puts "  Routes #{code}: #{nodes.size} routes"
   end
 
   # 既存の同一属性 route があればその id を返し、無ければ新規作成して id を返す。
@@ -144,10 +143,22 @@ class DataGenerator
   # バス停 XML 側は「種別 + 会社 + 路線名」だけで路線を引きたい。
   # 運賃や備考まで揃わないので、route_id_by_key（7 要素キー）はそのままでは引けず、
   # 3 要素キーの逆引きインデックスをここで作っておく。
+  #
+  # 同一 (種別, 会社, 路線名) が運賃や区間 (note) 違いで複数 BusRoute に分かれているケースが
+  # ある (例: 神奈中の「津01」が長津田駅〜長津田辻 と 奈良井〜奈良井の 2 系統)。バス停 XML 側は
+  # 3 要素しか持たないので、すべての候補 route_id を保持しておき link_stop_to_routes で
+  # 「バス停の座標に最も近い route」を選ぶ。@coords_by_route_id は最近接判定の入力。
   def build_route_lookup
     @route_lookup = @bus_routes.each_with_object({}) do |route, lookup|
       key = [ route[:bus_type], route[:operation_company], route[:line_name] ]
-      lookup[key] ||= route[:id]
+      lookup[key] ||= []
+      lookup[key] << route[:id]
+    end
+
+    @coords_by_route_id = Hash.new { |h, k| h[k] = [] }
+    @bus_route_tracks.each do |track|
+      next unless track[:bus_route_id]
+      @coords_by_route_id[track[:bus_route_id]].concat(@track_coords_by_id[track[:id]] || [])
     end
   end
 
@@ -157,12 +168,11 @@ class DataGenerator
     pos_hash = build_position_index(doc)
 
     nodes = doc.css("BusStop")
-    progress = ProgressBar.create(title: "Stops #{code}", total: nodes.count, format: PROGRESS_FORMAT)
     nodes.each do |node|
       bs_id = create_bus_stop(node, pos_hash, prefecture)
       link_stop_to_routes(node, bs_id)
-      progress.increment
     end
+    puts "  Stops #{code}: #{nodes.size} stops"
   end
 
   # Point 要素の id → 緯度経度文字列の対応表。
@@ -184,8 +194,8 @@ class DataGenerator
       longitude: pos.split[1].to_f,
       created_at: @now,
       updated_at: @now,
-      # 以下 4 つは後段の JSON マージで埋める
-      postal_code: nil,
+      # prefecture は P11 XML から、city / formatted_address は geocode:generate (ISJ)、
+      # keyword は keyword:generate (kakasi) で別途埋まる。
       prefecture: prefecture,
       city: nil,
       formatted_address: nil,
@@ -195,15 +205,23 @@ class DataGenerator
   end
 
   # 1 つの BusStop に複数の路線が紐づく（中間テーブル bus_route_bus_stops に展開）。
+  # 同一 3 要素キーに複数 BusRoute がぶら下がる場合は、バス停の座標に最も近い軌跡を持つ
+  # BusRoute を選ぶ。これがないと最初に登録された 1 件にすべてのバス停が吸われる。
   def link_stop_to_routes(node, bs_id)
+    bs = @bus_stops[bs_id - 1]
+    lat = bs[:latitude]
+    lng = bs[:longitude]
+
     node.css("BusRouteInformation").each do |info|
       key = [
         info.at("busType").text.to_i,
         info.at("busOperationCompany").text,
         info.at("busLineName").text
       ]
-      route_id = @route_lookup[key]
-      next unless route_id
+      candidates = @route_lookup[key]
+      next if candidates.nil? || candidates.empty?
+
+      route_id = pick_nearest_route(candidates, lat, lng)
 
       @bus_route_bus_stops << {
         id: @bus_route_bus_stops.size + 1,
@@ -213,6 +231,21 @@ class DataGenerator
         created_at: @now,
         updated_at: @now
       }
+    end
+  end
+
+  # 候補の BusRoute から、軌跡の最近接 coord までの距離が最小の 1 つを選ぶ。
+  # squared euclidean (lat, lng の度差²乗合算) で十分。track が紐付いていない BusRoute は
+  # 距離 INF 扱いで実質的に最後の候補になる。
+  def pick_nearest_route(candidates, lat, lng)
+    return candidates.first if candidates.size == 1
+    candidates.min_by do |route_id|
+      coords = @coords_by_route_id[route_id]
+      if coords.empty?
+        Float::INFINITY
+      else
+        coords.map { |c| (lat - c[0]) ** 2 + (lng - c[1]) ** 2 }.min
+      end
     end
   end
 
@@ -229,7 +262,7 @@ class DataGenerator
     write_csv(data_dir, "bus_route_tracks", @bus_route_tracks,
               %w[id gml_id coordinates bus_route_id created_at updated_at])
     write_csv(data_dir, "bus_stops", @bus_stops,
-              %w[id gml_id name latitude longitude created_at updated_at postal_code prefecture city formatted_address keyword])
+              %w[id gml_id name latitude longitude created_at updated_at prefecture city formatted_address keyword])
     write_csv(data_dir, "bus_route_bus_stops", @bus_route_bus_stops,
               %w[id bus_route_id bus_stop_id bus_stop_number created_at updated_at])
   end
@@ -276,12 +309,31 @@ namespace :data do
   # COPY 文の対象テーブル。順序は外部キー依存順（先に親、最後に子）。
   TABLES = %w[bus_routes bus_route_tracks bus_stops bus_route_bus_stops].freeze
 
+  desc "Profile data:generate via stackprof (writes tmp/data_generate.stackprof)"
+  task profile: :environment do
+    require "nokogiri"
+    require "simplify_rb"
+    require "csv"
+    require "stackprof"
+
+    $stdout.sync = true
+    out = "tmp/data_generate.stackprof"
+    StackProf.run(mode: :wall, out: out, interval: 1000) do
+      DataGenerator.new.run
+    end
+    puts ""
+    puts "Profile saved to #{out}"
+    puts "View top by self time:   bundle exec stackprof #{out} --text --limit 30"
+    puts "View top by total time:  bundle exec stackprof #{out} --text --total --limit 30"
+  end
+
   desc "Generate db/data/*.csv from XML sources"
   task generate: :environment do
     require "nokogiri"
     require "simplify_rb"
     require "csv"
 
+    $stdout.sync = true
     DataGenerator.new.run
   end
 

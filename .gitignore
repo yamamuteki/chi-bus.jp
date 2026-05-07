@@ -36,3 +36,4 @@
 # Project-specific
 /coverage
 /.claude/
+/.playwright-mcp/

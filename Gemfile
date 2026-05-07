@@ -88,7 +88,6 @@ gem "google-analytics-rails"
 gem "newrelic_rpm"
 gem "sitemap_generator"
 gem "cache_clear_rails"
-gem "ruby-progressbar"
 gem "simplify_rb"
 gem "simplecov", require: false, group: :test
 gem "rails-erd", group: :development
@@ -96,3 +95,5 @@ gem "rails-erd", group: :development
 gem "kakasi_parser", group: :development
 # kakasi gem の実行時依存（Ruby 4.0 で default gem から外れるため明示）
 gem "fiddle", group: :development
+# data:profile タスクで使用 (sampling profiler、低オーバーヘッド)
+gem "stackprof", require: false, group: :development
