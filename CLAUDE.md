@@ -85,8 +85,8 @@ XML + JSON のソースから `db/data/*.csv` を生成し、CSV を PostgreSQL 
 
 ソース：
 
-- `db/N07-11_*.xml` — バス路線（**国土交通省「国土数値情報」**、ファイル名末尾 2 桁は JIS 都道府県コード、08〜14 = 茨城〜神奈川）
-- `db/P11-10_*-jgd-g.xml` — バス停
+- `db/ksj/n07/N07-11_*.xml.gz` — バス路線（**国土交通省「国土数値情報」**、ファイル名末尾 2 桁は JIS 都道府県コード、08〜14 = 茨城〜神奈川）。生 XML が大きいので gzip 圧縮して git 管理 (`open_xml` で透過解凍)
+- `db/ksj/p11/P11-10_*-jgd-g.xml.gz` — バス停
 - `db/isj/{prefcode}-18.0b/*.csv` — **位置参照情報** (大字・町丁目レベル、CP932 エンコード)。reverse geocoding (lat/lng → 住所) のソース。47 都道府県分。XML 同様 git 管理 (約 17MB)。最新版を取り込み直すときは <https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi> から DL し直す。zip / html / xml は不要なので CSV だけ残す運用。
 
 利用にあたっては国土数値情報・位置参照情報ダウンロードサービスの利用規約に従うこと。

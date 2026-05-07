@@ -1,4 +1,4 @@
-# db/N07-11_*.xml（路線）と db/P11-10_*-jgd-g.xml（バス停）を解析して
+# db/ksj/n07/N07-11_*.xml.gz（路線）と db/ksj/p11/P11-10_*-jgd-g.xml.gz（バス停）を解析して
 # db/data/*.csv を生成・DB に投入する rake タスク。
 #
 # データソースは「国土数値情報」（国土交通省）。XML は重く、`generate` は
@@ -27,8 +27,10 @@ class DataGenerator
 
   # XML のファイル命名規則。`%s` に都道府県コードを差し込んで使う。
   # データソースを差し替える際はここ 1 箇所を直せば済む。
-  ROUTE_XML_FORMAT = "db/N07-11_%s.xml".freeze
-  STOP_XML_FORMAT  = "db/P11-10_%s-jgd-g.xml".freeze
+  # 国土数値情報の XML は容量が大きいため gzip 圧縮して .xml.gz として
+  # 保存・読み込みする (open_xml で透過解凍)。
+  ROUTE_XML_FORMAT = "db/ksj/n07/N07-11_%s.xml.gz".freeze
+  STOP_XML_FORMAT  = "db/ksj/p11/P11-10_%s-jgd-g.xml.gz".freeze
 
   def initialize
     @now = Time.zone.now
@@ -280,7 +282,9 @@ class DataGenerator
   # ---------------------------------------------------------------------------
 
   def open_xml(path)
-    doc = Nokogiri::XML(File.open(path))
+    io = path.to_s.end_with?(".gz") ? Zlib::GzipReader.open(path) : File.open(path)
+    doc = Nokogiri::XML(io)
+    io.close
     doc.remove_namespaces! # 名前空間を全部剥がして css セレクタを使いやすくする
     doc
   end
@@ -314,6 +318,7 @@ namespace :data do
     require "nokogiri"
     require "simplify_rb"
     require "csv"
+    require "zlib"
     require "stackprof"
 
     $stdout.sync = true
@@ -332,6 +337,7 @@ namespace :data do
     require "nokogiri"
     require "simplify_rb"
     require "csv"
+    require "zlib"
 
     $stdout.sync = true
     DataGenerator.new.run
