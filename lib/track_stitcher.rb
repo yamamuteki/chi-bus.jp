@@ -91,12 +91,16 @@ class TrackStitcher
 
     # 並行軌跡の処理: (head, tail) が完全一致する track が複数あるとき、
     #   - **coords array が完全一致** → 真の重複 (XML 由来の同一データ)。1 本だけ残す。
-    #   - **coords array が異なる** → 行き帰りで別経路の並行軌跡。両方残す
-    #     (greedy が一方を forward、もう一方を reversed として連続的に flat に積む)。
+    #   - **coords array が異なる** → 行き帰りで別経路の並行軌跡。両方残すが、
+    #     パートナー (= primary 以外) を `alternate_ids` に登録して greedy の outbound phase
+    #     では使わせない。outbound 完了 (= 全 primary 利用済み or 接続不能) 後に return phase
+    #     で利用する。これにより「outbound で primary を辿って終端到達 → return で alternate
+    #     を辿って戻る」という往復モデルが自然に実現する。
     # ※ UI 側 (application_helper.rb#build_routes) は全 bus_route_tracks を polyline 描画する
     #    ため、stitcher で片方を捨てると「polyline は両経路、採番は片経路のみ」のミスマッチが
-    #    生じバス停順が東西ジグザグに見える (例: 坂東市 5985)。両経路を残すことで一致させる。
+    #    生じる (例: 坂東市 5985)。両経路を残すことで整合させる。
     grouped = pieces.group_by { |p| [ p[:head], p[:tail] ] }
+    alternate_ids = {}  # Hash で fast lookup
     pieces = grouped.values.flat_map do |dup|
       if dup.size == 1
         dup
@@ -104,8 +108,11 @@ class TrackStitcher
         # 全 member の coords が完全一致 → 真の重複。id 最小を残す。
         [ dup.max_by { |p| -p[:id] } ]
       else
-        # coords が異なる → 行き帰り別経路。両方保持。
-        dup
+        # coords が異なる → 行き帰り別経路。primary (coords 多い方、tie は id 若い方)
+        # と alternate (残り) に分ける。alternate は outbound phase で除外、return phase で使う。
+        sorted = dup.sort_by { |p| [ -p[:coords].size, p[:id] ] }
+        sorted[1..].each { |p| alternate_ids[p[:id]] = true }
+        sorted
       end
     end.sort_by { |p| p[:id] }
     skipped_parallel = total - pieces.size
@@ -126,8 +133,12 @@ class TrackStitcher
     # PR #50 は各 piece の west_end のみを終端候補としていたため、終端が piece の
     # east 側にある場合 (例: 横浜浅83 の 12160 tail at lng 139.5751、head は 139.5742)
     # を見逃していた。両端を独立に評価することで対応する。
+    # 注意: alternate は head/tail を primary と共有するため degree 1 端点を持たない
+    # (= terminal にならない)。fallback も primary のみで回す (alternate を起点にしても
+    # 構造上 outbound として意味が薄い)。
     terminal_starts = []
     pieces.each do |p|
+      next if alternate_ids[p[:id]]
       terminal_starts << { piece: p, lng: p[:head][1], reversed: false } if endpoint_counts[p[:head]] == 1
       terminal_starts << { piece: p, lng: p[:tail][1], reversed: true } if endpoint_counts[p[:tail]] == 1
     end
@@ -135,9 +146,8 @@ class TrackStitcher
     start_meta = if !terminal_starts.empty?
       terminal_starts.min_by { |m| [ m[:lng], m[:piece][:id] ] }
     else
-      # 終端が無い場合のみ、各 piece の westmost 端点を候補に最西選定。
-      # piece の west_end を起点にすることで coord 順が東→西の track でも反転して使える。
-      pieces.map { |p|
+      # 終端が無い (= 純粋循環) 場合のみ、各 piece の westmost 端点を候補に最西選定。
+      pieces.reject { |p| alternate_ids[p[:id]] }.map { |p|
         west_is_tail = p[:tail][1] < p[:head][1]
         west_lng = west_is_tail ? p[:tail][1] : p[:head][1]
         { piece: p, lng: west_lng, reversed: west_is_tail }
@@ -208,6 +218,10 @@ class TrackStitcher
 
     # 末尾に最も近い未使用 track を貪欲に連結。head/tail どちらでも接続できる方を選び、
     # 同距離の場合は forward (反転なし) を優先する。
+    # phase = :outbound では alternate を除外、:return では alternate を含めて連結する。
+    # outbound で連結不能になった (= primary 全消化 or 全 alternate しか残らない) 段階で
+    # phase を :return に切り替えて続行する。
+    phase = :outbound
     while used.size < pieces.size
       current_tail = flat.last
       best_piece = nil
@@ -215,6 +229,7 @@ class TrackStitcher
       best_reversed = false
       pieces.each do |p|
         next if used[p[:id]]
+        next if phase == :outbound && alternate_ids[p[:id]]
         d_head = (current_tail[0] - p[:head][0]) ** 2 + (current_tail[1] - p[:head][1]) ** 2
         d_tail = (current_tail[0] - p[:tail][0]) ** 2 + (current_tail[1] - p[:tail][1]) ** 2
         this_reversed = d_tail < d_head
@@ -226,7 +241,15 @@ class TrackStitcher
           best_reversed = this_reversed
         end
       end
-      break unless best_piece
+
+      if best_piece.nil?
+        if phase == :outbound && alternate_ids.any?
+          phase = :return
+          next
+        else
+          break
+        end
+      end
 
       coords = best_reversed ? best_piece[:coords].reverse : best_piece[:coords]
       reversed_count += 1 if best_reversed

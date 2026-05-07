@@ -33,14 +33,14 @@ class TrackStitcherTest < Minitest::Test
 
   def test_parallel_tracks_with_different_coords_keep_both
     # head/tail が同じでも coords が異なる場合 = 行き帰りで別経路の並行軌跡。
-    # 両方を保持し、greedy で連続して flat に積む (一方は forward、もう一方は reversed)。
-    # UI は全 track を polyline 描画するため、stitcher 側で片方を捨てると採番と
-    # polyline がズレる (= 5985 坂東市の症状)。
-    short  = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
-    longer = t(2, [ [ 35.0, 140.0 ], [ 35.05, 140.05 ], [ 35.1, 140.1 ] ])
+    # primary (coords 多い方) を outbound で利用、alternate (残り) を return phase で
+    # 反転して連結。これにより往復モデルが実現し UI 描画と numbering が整合する。
+    short  = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])  # alternate (coords 少ない)
+    longer = t(2, [ [ 35.0, 140.0 ], [ 35.05, 140.05 ], [ 35.1, 140.1 ] ])  # primary
     result = TrackStitcher.call([ short, longer ])
-    # 期待: short coords + longer reversed = [(35.0, 140.0), (35.1, 140.1), (35.05, 140.05), (35.0, 140.0)]
-    assert_equal [ [ 35.0, 140.0 ], [ 35.1, 140.1 ], [ 35.05, 140.05 ], [ 35.0, 140.0 ] ], result
+    # 期待: longer forward (outbound) → short reversed (return phase) で dedup。
+    # = [(35.0, 140.0), (35.05, 140.05), (35.1, 140.1), (35.0, 140.0)]
+    assert_equal [ [ 35.0, 140.0 ], [ 35.05, 140.05 ], [ 35.1, 140.1 ], [ 35.0, 140.0 ] ], result
   end
 
   def test_parallel_tracks_with_identical_coords_keep_one
@@ -48,6 +48,27 @@ class TrackStitcherTest < Minitest::Test
     a = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
     b = t(2, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
     assert_equal a.coordinates, TrackStitcher.call([ a, b ])
+  end
+
+  def test_parallel_alternate_is_deferred_to_return_phase
+    # 往復モデル: outbound phase は primary のみ使用。alternate (= 並行軌跡パートナー)
+    # は outbound 完了後の return phase で利用される。
+    # 構造: north terminal a → 並行軌跡 (b primary, c alternate) → south terminal d
+    # outbound: a → b → d (terminal 到達) → e_spur 経由
+    # return: alternate c で逆向きに戻る
+    a = t(1, [ [ 35.2, 140.0 ], [ 35.1, 140.0 ] ])  # north 端 (terminal)
+    b = t(2, [ [ 35.1, 140.0 ], [ 35.05, 140.05 ], [ 35.0, 140.0 ] ])  # 西経路 (primary, 3 coords)
+    c = t(3, [ [ 35.1, 140.0 ], [ 35.0, 140.0 ] ])  # 東経路 (alternate, 2 coords)
+    d = t(4, [ [ 35.0, 140.0 ], [ 34.9, 140.0 ] ])  # south 端 (terminal)
+    result = TrackStitcher.call_with_diagnostics([ a, b, c, d ])
+    # 期待 stitch_steps:
+    #   1. a (北端 terminal 起点)
+    #   2. b primary (outbound 西経路)
+    #   3. d (continue south)
+    #   4. c alternate (return phase で 反転利用)
+    track_ids = result.stitch_steps.map(&:track_id)
+    # a, b, d が outbound で先に並ぶ。c は最後 (return phase)。
+    assert_equal [ 1, 2, 4, 3 ], track_ids
   end
 
   def test_parallel_outbound_and_return_paths_concatenate_via_shared_endpoint
