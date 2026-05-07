@@ -215,6 +215,26 @@ class TrackStitcherTest < Minitest::Test
     assert_equal [], result.bridge_segment_indices
   end
 
+  def test_explicit_start_overrides_westmost_default
+    # start: で明示した coord が degree-1 terminal なら、最西端ヒューリスティックを上書きして
+    # その coord から開始する。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0, 140.1 ], [ 35.0, 140.2 ] ])
+    # 通常 (start 未指定) は westmost = (35.0, 140.0)
+    assert_equal [ 35.0, 140.0 ], TrackStitcher.call([ a, b ]).first
+    # start = east end → そこから始まる (反転)
+    assert_equal [ 35.0, 140.2 ], TrackStitcher.call([ a, b ], start: [ 35.0, 140.2 ]).first
+  end
+
+  def test_explicit_start_falls_back_when_coord_not_terminal
+    # start で渡した coord が terminal でない (= 存在しない or junction) 場合は
+    # 既定の最西端 fallback に戻る。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0, 140.1 ], [ 35.0, 140.2 ] ])
+    # ありえない coord
+    assert_equal [ 35.0, 140.0 ], TrackStitcher.call([ a, b ], start: [ 99.0, 99.0 ]).first
+  end
+
   def test_result_is_deterministic_regardless_of_input_order
     a = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
     b = t(2, [ [ 35.1, 140.1 ], [ 35.2, 140.2 ] ])

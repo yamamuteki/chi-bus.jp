@@ -55,16 +55,21 @@ class TrackStitcher
   # 数倍 = 「side branch にしては長過ぎる」を区別する目安。
   SPUR_MAX_LENGTH_M = 500.0
 
-  def self.call(tracks)
-    new(tracks).run.flat_coords
+  def self.call(tracks, start: nil)
+    new(tracks, start: start).run.flat_coords
   end
 
-  def self.call_with_diagnostics(tracks)
-    new(tracks).run
+  def self.call_with_diagnostics(tracks, start: nil)
+    new(tracks, start: start).run
   end
 
-  def initialize(tracks)
+  # @param start [Array<Float>, nil] 起点とする degree-1 endpoint の coord [lat, lng]。
+  #   nil なら現状の「最西端 terminal → 最西端 endpoint」fallback を使う。
+  #   指定された coord を head に持つ piece が見つかれば forward、tail に持つなら reversed
+  #   で起点採用。見つからない場合は fallback。
+  def initialize(tracks, start: nil)
     @tracks = tracks
+    @start = start
   end
 
   def run
@@ -154,7 +159,19 @@ class TrackStitcher
       terminal_starts << { piece: p, lng: p[:tail][1], reversed: true } if endpoint_counts[p[:tail]] == 1
     end
 
-    start_meta = if !terminal_starts.empty?
+    # @start が指定されていれば、その coord を head/tail に持つ terminal piece を起点に採用。
+    # StartTerminalSelector が line_name や bridge 合計から判定した起点をここで使う。
+    explicit_start_meta = nil
+    if @start
+      explicit_start_meta = terminal_starts.find { |m|
+        coord = m[:reversed] ? m[:piece][:tail] : m[:piece][:head]
+        coord == @start
+      }
+    end
+
+    start_meta = if explicit_start_meta
+      explicit_start_meta
+    elsif !terminal_starts.empty?
       terminal_starts.min_by { |m| [ m[:lng], m[:piece][:id] ] }
     else
       # 終端が無い (= 純粋循環) 場合のみ、各 piece の westmost 端点を候補に最西選定。

@@ -20,14 +20,17 @@ namespace :bus_stop_number do
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       BusRoute.find_each do |bus_route|
         bus_route_bus_stops = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
-        stitch = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
+        tracks = bus_route.bus_route_tracks.to_a
+        # line_name → multi-try bridge 最小化 → 最西端 fallback の順で起点を決定。
+        start = StartTerminalSelector.call(tracks, line_name: bus_route.line_name, bus_route_bus_stops: bus_route_bus_stops)
+        stitch = TrackStitcher.call_with_diagnostics(tracks, start: start)
         assignments = BusStopNumberer.call(
           flat_coords: stitch.flat_coords,
           bus_route_bus_stops: bus_route_bus_stops,
           bridge_segment_indices: stitch.bridge_segment_indices
         )
-        # line_name の地名ヒントで採番方向を補正。「○○～△△」のように起点/終点の
-        # 名前が含まれる路線で、現状の番号が逆向きなら全反転して整える。
+        # line_name の地名ヒントで採番方向を補正 (start selector が効いていれば反転判定は
+        # スキップされるはず。残りの誤向きを救うため保険として残す)。
         assignments = LineNameOrienter.call(bus_route, bus_route_bus_stops, assignments)
         rows.concat(assignments)
       end
@@ -92,8 +95,10 @@ namespace :bus_stop_number do
 
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       BusRoute.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
-        stitch = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
+        tracks = bus_route.bus_route_tracks.to_a
         brbs_list = bus_route.bus_route_bus_stops.to_a
+        start = StartTerminalSelector.call(tracks, line_name: bus_route.line_name, bus_route_bus_stops: brbs_list)
+        stitch = TrackStitcher.call_with_diagnostics(tracks, start: start)
         number_result = BusStopNumberer.call_with_diagnostics(
           flat_coords: stitch.flat_coords,
           bus_route_bus_stops: brbs_list,
@@ -259,7 +264,13 @@ namespace :bus_stop_number do
     end
     puts ""
 
-    result = TrackStitcher.call_with_diagnostics(tracks)
+    brbs_for_start = bus_route.bus_route_bus_stops.includes(:bus_stop).to_a
+    start = StartTerminalSelector.call(tracks, line_name: bus_route.line_name, bus_route_bus_stops: brbs_for_start)
+    puts "Start selection:"
+    puts "  picked: #{start.inspect}  (nil = TrackStitcher 最西端 fallback)"
+    puts ""
+
+    result = TrackStitcher.call_with_diagnostics(tracks, start: start)
     puts "Stitch summary:"
     puts "  total_tracks: #{result.total_tracks}, skipped_parallel: #{result.skipped_parallel}"
     puts "  reversed_count: #{result.reversed_count}, isolated_count: #{result.isolated_count}"
