@@ -22,6 +22,9 @@ namespace :bus_stop_number do
         bus_route_bus_stops = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
         flat_coords = TrackStitcher.call(bus_route.bus_route_tracks.to_a)
         assignments = BusStopNumberer.call(flat_coords: flat_coords, bus_route_bus_stops: bus_route_bus_stops)
+        # line_name の地名ヒントで採番方向を補正。「○○～△△」のように起点/終点の
+        # 名前が含まれる路線で、現状の番号が逆向きなら全反転して整える。
+        assignments = LineNameOrienter.call(bus_route, bus_route_bus_stops, assignments)
         rows.concat(assignments)
       end
     end
