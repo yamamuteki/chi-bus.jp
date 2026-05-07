@@ -11,6 +11,11 @@
 #   - 端点同士で繋ぐ貪欲法。Y 字分岐や逆方向 track にも対応するため、head/tail どちらでも
 #     接続を試す（必要なら反転）。
 #   - 同距離なら forward (反転なし) を優先。reversed による逆戻りを防ぐ tie-break。
+#   - **Leaf spur 挿入**: greedy が junction (端点重複度 3+) に到達した時点で、その junction から
+#     生える「他端が degree 1 = 終端」の枝 (= leaf spur) があれば、greedy で先に進む前に
+#     spur を取り込む。spur は coords 数が小さい方から処理する (= 短い枝を side branch とみなす)。
+#     これがないと、junction の片側を greedy が先に進んでしまい、後で spur に戻るために
+#     大ジャンプ (例: 5885 で 5752m) が発生していた。
 #
 # 診断用に call_with_diagnostics を提供。stitch の品質を測る指標を返す。
 #   - max_jump_distance: 全連続点間 (track 内 + 連結部) の最大ジャンプ距離
@@ -119,6 +124,56 @@ class TrackStitcher
     connection_jumps = []
     stitch_steps = [ StitchStep.new(track_id: start[:id], reversed: start_reversed, join_distance: 0.0, coords_size: start[:coords].size, isolated: false) ]
 
+    # Leaf spur 挿入: 現 flat.last が junction (重複度 3+) で、未使用の leaf spur がある間 take。
+    # 短い枝 (coords 少ない) → side branch として先に処理。長い枝 (本線続き) は greedy に任せる。
+    # 取得後、新 flat.last は spur の terminal (重複度 1) なので junction 条件で自然に break。
+    insert_spur = -> {
+      loop do
+        break if (endpoint_counts[flat.last] || 0) < 3
+
+        spur_candidates = []
+        pieces.each do |p|
+          next if used[p[:id]]
+          if p[:head] == flat.last
+            other = p[:tail]
+          elsif p[:tail] == flat.last
+            other = p[:head]
+          else
+            next
+          end
+          next unless endpoint_counts[other] == 1
+          spur_candidates << p
+        end
+        break if spur_candidates.empty?
+
+        spur = spur_candidates.min_by { |p| [ p[:coords].size, p[:id] ] }
+        spur_reversed = (spur[:tail] == flat.last)
+
+        coords = spur_reversed ? spur[:coords].reverse : spur[:coords]
+        reversed_count += 1 if spur_reversed
+
+        join_dist = haversine_meters(flat.last[0], flat.last[1], coords.first[0], coords.first[1])
+        connection_jumps << join_dist
+        stitch_steps << StitchStep.new(
+          track_id: spur[:id],
+          reversed: spur_reversed,
+          join_distance: join_dist,
+          coords_size: spur[:coords].size,
+          isolated: false
+        )
+
+        if coords.first == flat.last
+          flat.concat(coords[1..])
+        else
+          flat.concat(coords)
+        end
+        used[spur[:id]] = true
+      end
+    }
+
+    # 起点直後にも spur 挿入を試行 (起点が junction で終わっている場合)。
+    insert_spur.call
+
     # 末尾に最も近い未使用 track を貪欲に連結。head/tail どちらでも接続できる方を選び、
     # 同距離の場合は forward (反転なし) を優先する。
     while used.size < pieces.size
@@ -155,6 +210,9 @@ class TrackStitcher
         flat.concat(coords)
       end
       used[best_piece[:id]] = true
+
+      # 各 greedy ステップの後に spur 挿入を試行。
+      insert_spur.call
     end
 
     # 連結できなかった孤立 track は経度+id 順で末尾に追加。
