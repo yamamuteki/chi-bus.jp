@@ -42,17 +42,19 @@ namespace :bus_stop_number do
     2.0 * 6_371_000.0 * Math.asin(Math.sqrt(a))
   }
 
-  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv (does not touch DB)"
+  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB)"
   task generate: :environment do
     require "csv"
+    require "zlib"
     $stdout.sync = true
-    csv_path = "db/data/bus_stop_numbers.csv"
+    csv_path = "db/data/bus_stop_numbers.csv.gz"
 
     # 1. 路線の bus_route_tracks を TrackStitcher で 1 本の座標列に繋ぎ合わせる。
     # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当てる。
     rows = compute_assignments
 
-    CSV.open(csv_path, "w", headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true) do |csv|
+    Zlib::GzipWriter.open(csv_path) do |gz|
+      csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
       rows.each { |row| csv << row }
     end
     puts "Wrote #{csv_path} (#{rows.size} rows)"
@@ -287,9 +289,10 @@ namespace :bus_stop_number do
     end
   end
 
-  desc "Load bus_stop_number from db/data/bus_stop_numbers.csv"
+  desc "Load bus_stop_number from db/data/bus_stop_numbers.csv.gz"
   task load: :environment do
-    csv_path = "db/data/bus_stop_numbers.csv"
+    require "zlib"
+    csv_path = "db/data/bus_stop_numbers.csv.gz"
     raise "Missing #{csv_path}. Run 'rails bus_stop_number:generate' first." unless File.exist?(csv_path)
 
     raw = ActiveRecord::Base.connection.raw_connection
@@ -299,7 +302,7 @@ namespace :bus_stop_number do
       raw.exec("CREATE TEMP TABLE _tmp_bsn (bus_route_bus_stop_id INTEGER, bus_stop_number INTEGER) ON COMMIT DROP")
 
       raw.copy_data("COPY _tmp_bsn (bus_route_bus_stop_id, bus_stop_number) FROM STDIN WITH CSV HEADER") do
-        File.open(csv_path, "r") do |f|
+        Zlib::GzipReader.open(csv_path) do |f|
           while (line = f.gets)
             raw.put_copy_data(line)
           end

@@ -11,12 +11,13 @@
 # bus_stops.prefecture は P11 XML 由来で既に埋まっているため上書きしない。
 # city と formatted_address のみ ISJ から populate する。
 namespace :geocode do
-  CSV_PATH = "db/data/geocoding.csv".freeze
+  CSV_PATH = "db/data/geocoding.csv.gz".freeze
   ISJ_DIR = "db/isj".freeze
 
-  desc "Generate geocoding into db/data/geocoding.csv (does not touch DB)"
+  desc "Generate geocoding into db/data/geocoding.csv.gz (does not touch DB)"
   task generate: :environment do
     require "csv"
+    require "zlib"
     $stdout.sync = true
 
     unless Dir.exist?(ISJ_DIR) && !Dir.empty?(ISJ_DIR)
@@ -43,14 +44,16 @@ namespace :geocode do
     end
 
     rows.sort_by! { |r| r[0] }
-    CSV.open(CSV_PATH, "w", headers: %w[bus_stop_id city formatted_address], write_headers: true) do |csv|
+    Zlib::GzipWriter.open(CSV_PATH) do |gz|
+      csv = CSV.new(gz, headers: %w[bus_stop_id city formatted_address], write_headers: true)
       rows.each { |row| csv << row }
     end
     puts "Wrote #{CSV_PATH} (#{rows.size} rows, #{miss} bus_stops without match)"
   end
 
-  desc "Load geocoding from db/data/geocoding.csv into bus_stops.city / formatted_address"
+  desc "Load geocoding from db/data/geocoding.csv.gz into bus_stops.city / formatted_address"
   task load: :environment do
+    require "zlib"
     raise "Missing #{CSV_PATH}. Run 'rails geocode:generate' first." unless File.exist?(CSV_PATH)
 
     raw = ActiveRecord::Base.connection.raw_connection
@@ -64,7 +67,7 @@ namespace :geocode do
       SQL
 
       raw.copy_data("COPY _tmp_geocoding (bus_stop_id, city, formatted_address) FROM STDIN WITH CSV HEADER") do
-        File.open(CSV_PATH, "r") do |f|
+        Zlib::GzipReader.open(CSV_PATH) do |f|
           while (line = f.gets)
             raw.put_copy_data(line)
           end
