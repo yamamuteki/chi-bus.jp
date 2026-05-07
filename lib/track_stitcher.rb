@@ -89,11 +89,25 @@ class TrackStitcher
       )
     end
 
-    # 並行軌跡スキップ: (head, tail) が完全一致する track が複数あるとき、
-    # coords 数が多い (= より詳細な軌跡) を残す。tie-break は id で決定論化。
+    # 並行軌跡の処理: (head, tail) が完全一致する track が複数あるとき、
+    #   - **coords array が完全一致** → 真の重複 (XML 由来の同一データ)。1 本だけ残す。
+    #   - **coords array が異なる** → 行き帰りで別経路の並行軌跡。両方残す
+    #     (greedy が一方を forward、もう一方を reversed として連続的に flat に積む)。
+    # ※ UI 側 (application_helper.rb#build_routes) は全 bus_route_tracks を polyline 描画する
+    #    ため、stitcher で片方を捨てると「polyline は両経路、採番は片経路のみ」のミスマッチが
+    #    生じバス停順が東西ジグザグに見える (例: 坂東市 5985)。両経路を残すことで一致させる。
     grouped = pieces.group_by { |p| [ p[:head], p[:tail] ] }
-    pieces = grouped.values.map { |dup| dup.max_by { |p| [ p[:coords].size, -p[:id] ] } }
-                          .sort_by { |p| p[:id] }
+    pieces = grouped.values.flat_map do |dup|
+      if dup.size == 1
+        dup
+      elsif dup.map { |p| p[:coords] }.uniq.size == 1
+        # 全 member の coords が完全一致 → 真の重複。id 最小を残す。
+        [ dup.max_by { |p| -p[:id] } ]
+      else
+        # coords が異なる → 行き帰り別経路。両方保持。
+        dup
+      end
+    end.sort_by { |p| p[:id] }
     skipped_parallel = total - pieces.size
 
     # 端点重複度の集計。各端点が何個の track に共有されているかを数える。

@@ -31,17 +31,36 @@ class TrackStitcherTest < Minitest::Test
     assert_equal [ [ 35.0, 140.0 ], [ 35.1, 140.1 ], [ 35.2, 140.2 ] ], TrackStitcher.call([ a, b ])
   end
 
-  def test_parallel_tracks_keep_longer_one
+  def test_parallel_tracks_with_different_coords_keep_both
+    # head/tail が同じでも coords が異なる場合 = 行き帰りで別経路の並行軌跡。
+    # 両方を保持し、greedy で連続して flat に積む (一方は forward、もう一方は reversed)。
+    # UI は全 track を polyline 描画するため、stitcher 側で片方を捨てると採番と
+    # polyline がズレる (= 5985 坂東市の症状)。
     short  = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
     longer = t(2, [ [ 35.0, 140.0 ], [ 35.05, 140.05 ], [ 35.1, 140.1 ] ])
-    assert_equal longer.coordinates, TrackStitcher.call([ short, longer ])
+    result = TrackStitcher.call([ short, longer ])
+    # 期待: short coords + longer reversed = [(35.0, 140.0), (35.1, 140.1), (35.05, 140.05), (35.0, 140.0)]
+    assert_equal [ [ 35.0, 140.0 ], [ 35.1, 140.1 ], [ 35.05, 140.05 ], [ 35.0, 140.0 ] ], result
   end
 
-  def test_parallel_tracks_with_same_size_keep_smaller_id
+  def test_parallel_tracks_with_identical_coords_keep_one
+    # head/tail と coords が完全一致 = 真の重複。id 最小を 1 本だけ残す。
     a = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
     b = t(2, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
-    # max_by { [size, -id] } なので size 同点なら -id が大きい (= id が小さい) 方が選ばれる。
     assert_equal a.coordinates, TrackStitcher.call([ a, b ])
+  end
+
+  def test_parallel_outbound_and_return_paths_concatenate_via_shared_endpoint
+    # 行き帰りで別経路の並行軌跡 (head/tail 共有、coords 異なる) を両方保持。
+    # 一方を forward、もう一方を共通 endpoint で連続して reversed として連結する。
+    # 例: 坂東市 5985 では 21646 (西経路) と 21647 (東経路) が同じ南北端点を共有。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.05, 140.0 ], [ 35.1, 140.0 ] ])  # 西経路
+    b = t(2, [ [ 35.0, 140.0 ], [ 35.05, 140.05 ], [ 35.1, 140.0 ] ])  # 東経路 (中央が東寄り)
+    result = TrackStitcher.call([ a, b ])
+    # a forward → b reversed の連結を期待。
+    # flat: a coords + b coords reversed (共通 endpoint で dedup)
+    # = [(35.0, 140.0), (35.05, 140.0), (35.1, 140.0), (35.05, 140.05), (35.0, 140.0)]
+    assert_equal [ [ 35.0, 140.0 ], [ 35.05, 140.0 ], [ 35.1, 140.0 ], [ 35.05, 140.05 ], [ 35.0, 140.0 ] ], result
   end
 
   def test_far_apart_tracks_are_still_concatenated_greedily
