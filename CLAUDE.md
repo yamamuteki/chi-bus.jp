@@ -19,6 +19,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - したがって `develop` → `master` の PR マージは「リリース操作そのもの」。マイグレーションの有無、`ENV` 追加、外部 API 呼び出しの増加などの影響範囲を確認したうえで、ユーザーが手動マージする。
 - セットアップ手順とコマンドは `README.md` の「Heroku でのデプロイ」節を参照。
 
+### リリース手順
+
+1. develop が安定していることを確認
+2. develop の HEAD に **軽量タグ** を打つ: `git tag vX.Y.Z develop` (`-a -m` は付けない。過去のタグも全て lightweight)
+3. タグを push: `git push origin vX.Y.Z`
+4. GitHub UI でそのタグから Release を作成 (リリースノートはここで書く)
+5. develop → master の PR を作成・マージ → master push が Heroku オートデプロイをトリガ
+
+タグを develop 側に打つのは「master マージ前にバージョンを確定させたい」「Heroku が master push を契機にデプロイするので確定状態にしたい」ため。一般的な「master のマージコミットに打つ」フローからはずれるが、master のマージコミットからもタグは到達できるので checkout / hotfix 起点には支障なし。
+
 ### git 操作の確認ルール
 
 - ユーザーは手元で `git diff` を全件レビューしている。**Claude は勝手に `git add` / `commit` / `push` / PR 作成をしない**。
@@ -31,13 +41,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-千葉・東京・神奈川・埼玉（および茨城・栃木・群馬の一部）を対象とした、バス停と路線情報を提供する Web サービス（[https://www.chi-bus.jp](https://www.chi-bus.jp)）。
+全国 47 都道府県のバス停と路線情報を提供する Web サービス（[https://www.chi-bus.jp](https://www.chi-bus.jp)）。元々は千葉県を対象に開発・運用しており、サービス名 (chi-bus.jp) や「チーバくん」マスコット、about ページ内の動機・許諾節は千葉発の名残で意図的に残している。対応エリアの記述だけが全国向けに更新されている。
 
 ## 開発環境
 
 - Ruby のバージョンは `.ruby-version` で固定。
 - 全環境（development / test / production）で **PostgreSQL**。`docker-compose up` で app / db / selenium のコンテナが揃う。`Dockerfile.dev` が development 用、`Dockerfile`（rails new デフォルト）が production 用。
-- `kakasi_parser` は Gemfile でコメントアウト中。`keyword:generate`（後述）を走らせる場合のみ有効化が必要。`restore` 系は不要。
+- `kakasi_parser` は development グループに常駐。`keyword:generate`（後述）が要求する。OS 側の `kakasi` コマンドも要るが `Dockerfile.dev` に同梱済み。ホスト直で `bundle install` すると build に失敗するので Docker 経由で動かす前提。
 
 ## よく使うコマンド
 
@@ -70,14 +80,23 @@ CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_
 ### 検索フロー（`BusStopsController#index`）
 
 1. `params[:q]` あり → `bus_stops.keyword` への `lower(...) LIKE lower(...)` 検索（最大 100 件）。
-2. ヒット 0 件 → Google Places API で千葉県庁（35.6049, 140.1208）から半径 50km を検索。結果は `Place` でラップし、`Rails.cache` にクエリ単位でキャッシュ。
+2. ヒット 0 件 → Google Places API で千葉県庁（35.6049, 140.1208）から半径 50km を検索。結果は `Place` でラップし、`Rails.cache` にクエリ単位でキャッシュ。検索中心と半径は千葉発時代の名残で、全国対応後の現在は関東外ユーザーからは届かない既知の罠 (改善候補)。
 3. `params[:position]` あり → `BusStop.near([lat, lng], 20000)` で近傍 12 件。
 
 `BusStopsHelper#bus_stop_or_place_path` で `Place` クリック時のリンクを `?position=lat,lng` に変換しており、これによって「Places フォールバック → クリック → 近傍のバス停一覧」という導線が成立している。
 
 ### 検索キーワード
 
-`bus_stops.keyword` は「停留所名 + kakasi で変換したローマ字 + ひらがな + カタカナ」を空白区切りで連結したテキストで、漢字・かな・ローマ字いずれの入力でも `LIKE` でヒットする。生成は `lib/tasks/keyword.rake` の `keyword:generate`（要 `kakasi_parser`）。
+`bus_stops.keyword` は「停留所名 + kakasi で変換したローマ字 + ひらがな + カタカナ」を空白区切りで連結したテキストで、漢字・かな・ローマ字いずれの入力でも `LIKE` でヒットする。生成は `lib/tasks/keyword.rake` の `keyword:generate`（要 `kakasi_parser`）。kakasi の内部エンコーディング (CP932) で表現できない希少漢字を含む停留所名 (47 都道府県分で 22 件) は変換失敗するため、`begin/rescue` で `bus_stop.name` 単体にフォールバックする。
+
+### 派生データの計算ロジック (`lib/`)
+
+`bus_stop_number` / `city` / `formatted_address` は KSJ ソース (N07 / P11) に含まれないため、各 `*:generate` タスクが `lib/` 配下の PORO を呼んで計算し CSV に書き出す。後段の `*:load` が DB に bulk UPDATE する (各列が独立に更新できる構造)。
+
+- `lib/track_stitcher.rb` — 路線の `bus_route_tracks`（複数 Curve segment）を 1 本のフラット座標列につなぐ。`bus_stop_number:generate` の前段。
+- `lib/bus_stop_numberer.rb` — flat_coords にバス停を投影し、曲線位置で並べて `bus_stop_number` を割り当て。
+- `lib/line_name_orienter.rb` — `line_name` の地名ヒント (「○○行」「○○方面」) で進行方向を推定し、stitch 結果の向きを補正。
+- `lib/isj_reverse_geocoder.rb` — 国土交通省「位置参照情報」(ISJ) から (lat, lng) → (city, formatted_address) を引く PORO。grid bucket + 半径フォールバックで近傍検索。`geocode:generate` 専用 (旧 Google Geocoding API 依存を撤廃した置き換え)。
 
 ### データ構築パイプライン
 
@@ -130,7 +149,7 @@ XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮し�
 
 ### 外部依存と認証情報
 
-- Google Places / Geocoding API キー — `ENV["GOOGLE_API_KEY"]`。
+- Google Places API キー — `ENV["GOOGLE_API_KEY"]`。検索ヒット 0 件時のフォールバックでのみ使う。Geocoding は ISJ オフラインデータ (`lib/isj_reverse_geocoder.rb`) に移行したため Google Geocoding API は使っていない。
 - **Google Maps JavaScript API キーは `app/views/layouts/application.html.erb` にハードコードされている**（修正候補）。
 - Google Analytics トラッカー ID は `config/environments/production.rb` にハードコード。
 - New Relic（`newrelic_rpm`）は production で有効。
