@@ -82,6 +82,26 @@ class TrackStitcherTest < Minitest::Test
     assert_equal [ 35.0, 140.0 ], result.first
   end
 
+  def test_leaf_spur_at_junction_inserted_before_continuing_main_route
+    # 本線 a → b → c (3 track 連続)、junction (35.0, 140.1) から短い leaf spur s。
+    # b と c は通常の本線 (b の終端 (35.0, 140.2) は c の head と共有 = degree 2)。
+    # s は junction から degree-1 終端 (35.001, 140.1) に伸びる leaf spur。
+    # 旧実装では greedy で a→b→c を先に進め、s が flat 末尾に置かれて 5km+ の
+    # ジャンプが発生していた。spur 挿入により、junction で s を取り込んでから b→c へ進む。
+    a = t(1, [ [ 35.0,   140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0,   140.1 ], [ 35.0, 140.2 ] ])
+    c = t(3, [ [ 35.0,   140.2 ], [ 35.0, 140.3 ] ])
+    s = t(4, [ [ 35.0,   140.1 ], [ 35.001, 140.1 ] ])
+    result = TrackStitcher.call([ a, b, c, s ])
+    # 期待: a → s (spur 挿入) → 戻り → b → c
+    assert_equal [ 35.0, 140.0 ], result.first
+    assert_equal [ 35.0, 140.3 ], result.last  # 本線終端で終わる
+    spur_idx = result.index { |coord| coord == [ 35.001, 140.1 ] }
+    c_end_idx = result.index { |coord| coord == [ 35.0, 140.3 ] }
+    assert spur_idx, "spur coord should appear in flat"
+    assert spur_idx < c_end_idx, "spur should be inserted before route end"
+  end
+
   def test_result_is_deterministic_regardless_of_input_order
     a = t(1, [ [ 35.0, 140.0 ], [ 35.1, 140.1 ] ])
     b = t(2, [ [ 35.1, 140.1 ], [ 35.2, 140.2 ] ])
