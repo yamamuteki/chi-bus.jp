@@ -70,6 +70,7 @@ class DataGenerator
     PREFECTURES.each_key { |code| parse_route_xml(code) }
     build_route_lookup
     PREFECTURES.each { |code, prefecture| parse_stop_xml(code, prefecture) }
+    mark_fragmented_routes
     write_all_csv
   end
 
@@ -154,13 +155,97 @@ class DataGenerator
   end
 
   # 既存の同一属性 route があればその id を返し、無ければ新規作成して id を返す。
+  # fragmented フラグはここでは false で初期化、後段 mark_fragmented_routes で判定し直す。
   def find_or_create_route(attrs)
     key = attrs.values_at(:bus_type, :operation_company, :line_name, :weekday_rate, :saturday_rate, :holiday_rate, :note)
     @route_id_by_key[key] ||= begin
       new_id = @bus_routes.size + 1
-      @bus_routes << attrs.merge(id: new_id, created_at: @now, updated_at: @now)
+      @bus_routes << attrs.merge(id: new_id, fragmented: false, created_at: @now, updated_at: @now)
       new_id
     end
+  end
+
+  # ---------------------------------------------------------------------------
+  # 3. fragmented 判定（path として成立していない route に flag を立てる）
+  # ---------------------------------------------------------------------------
+
+  # 同一 attrs で集約された複数 BusRoute element が、実は物理的に独立な複数路線で
+  # まとめられているケース (例: 富士急シティバス_01_on の 81 element / 66 連結成分) を
+  # 検出して `fragmented: true` でマークする。判定基準:
+  #
+  # - bus_type ∈ (private_bus, public_bus)
+  # - track 端点グラフの連結成分数 ≥ 10 (= 物理的にバラバラな path が 10 個以上)
+  # - 停留所のバウンディングボックス対角距離 < 100km (= 高速バス除外)
+  #
+  # 高速バスは N07 上のポリラインが highway 区間を持たず両端 cluster のみで C が大きく
+  # 出るが、bundle ではないので除外する。span ≥ 100km で漏れる富士急 (50.9km) は flag。
+  #
+  # この flag が立った route は UI で一覧/検索から除外され、直接 URL アクセス時のみ
+  # 「複数路線の集約の可能性があるため一覧には表示していません」という alert で表示される。
+  FRAGMENTED_BUS_TYPES = [ 1, 2 ].freeze  # private_bus, public_bus
+  FRAGMENTED_COMPONENTS_THRESHOLD = 10
+  FRAGMENTED_SPAN_THRESHOLD_M = 100_000.0
+
+  def mark_fragmented_routes
+    tracks_by_route = @bus_route_tracks.group_by { |t| t[:bus_route_id] }
+    stops_by_route = @bus_route_bus_stops.group_by { |b| b[:bus_route_id] }
+    flagged = 0
+
+    @bus_routes.each do |route|
+      next unless FRAGMENTED_BUS_TYPES.include?(route[:bus_type])
+
+      tracks = tracks_by_route[route[:id]] || []
+      next if tracks.size < FRAGMENTED_COMPONENTS_THRESHOLD
+
+      components = compute_track_components(tracks.map { |t| t[:id] })
+      next if components < FRAGMENTED_COMPONENTS_THRESHOLD
+
+      stops = stops_by_route[route[:id]] || []
+      next if stops.size < 2
+      coords = stops.map { |b| @bus_stops[b[:bus_stop_id] - 1] }
+                    .map { |s| [ s[:latitude], s[:longitude] ] }
+      span = bounding_box_diagonal_m(coords)
+      next if span >= FRAGMENTED_SPAN_THRESHOLD_M
+
+      route[:fragmented] = true
+      flagged += 1
+    end
+    puts "Fragmented routes: #{flagged}"
+  end
+
+  # union-find で track 端点を共有するグループ数 (連結成分数) を計算。
+  def compute_track_components(track_ids)
+    parent = {}
+    track_ids.each { |t| parent[t] = t }
+    find_root = ->(x) { parent[x] == x ? x : parent[x] = find_root.call(parent[x]) }
+    union = ->(a, b) { ra = find_root.call(a); rb = find_root.call(b); parent[ra] = rb if ra != rb }
+
+    endpoint_map = Hash.new { |h, k| h[k] = [] }
+    track_ids.each do |tid|
+      coords = @track_coords_by_id[tid] || []
+      next if coords.empty?
+      endpoint_map[coords.first] << tid
+      endpoint_map[coords.last]  << tid
+    end
+    endpoint_map.each_value { |ids| ids.each_cons(2) { |a, b| union.call(a, b) } }
+    track_ids.map { |t| find_root.call(t) }.uniq.size
+  end
+
+  # 停留所群のバウンディングボックスの対角線距離 (m)。最遠ペアの距離を近似。
+  def bounding_box_diagonal_m(coords)
+    return 0.0 if coords.size < 2
+    lats = coords.map(&:first); lngs = coords.map(&:last)
+    haversine_m(lats.min, lngs.min, lats.max, lngs.max)
+  end
+
+  EARTH_RADIUS_M = 6_371_000.0
+  def haversine_m(lat1, lng1, lat2, lng2)
+    rad = Math::PI / 180.0
+    dlat = (lat2 - lat1) * rad
+    dlng = (lng2 - lng1) * rad
+    a = Math.sin(dlat / 2.0) ** 2 +
+        Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dlng / 2.0) ** 2
+    2.0 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a))
   end
 
   # ---------------------------------------------------------------------------
@@ -285,7 +370,7 @@ class DataGenerator
     data_dir.mkpath
 
     write_csv(data_dir, "bus_routes", @bus_routes,
-              %w[id bus_type operation_company line_name weekday_rate saturday_rate holiday_rate note created_at updated_at])
+              %w[id bus_type operation_company line_name weekday_rate saturday_rate holiday_rate note fragmented created_at updated_at])
     write_csv(data_dir, "bus_route_tracks", @bus_route_tracks,
               %w[id gml_id coordinates bus_route_id created_at updated_at])
     write_csv(data_dir, "bus_stops", @bus_stops,

@@ -109,4 +109,18 @@ class BusStopsControllerTest < ActionDispatch::IntegrationTest
     get bus_stop_path(id: 999_999_999)
     assert_response :not_found
   end
+
+  test "should exclude fragmented routes from bus_stop show route list" do
+    Geocoder::Lookup::Test.add_stub("1.5,1.5", [ {
+      "latitude" => 0, "longitude" => 0, "address" => "", "state" => "", "state_code" => "", "country" => "", "country_code" => ""
+    } ])
+
+    stop = bus_stops(:one)
+    BusRouteBusStop.create!(bus_route: bus_routes(:fragmented), bus_stop: stop, bus_stop_number: 1)
+
+    get bus_stop_path(stop)
+    assert_response :success
+    # fragmented 路線の line_name はリストに出ない
+    assert_select "a", text: /FragmentedRoute/, count: 0
+  end
 end

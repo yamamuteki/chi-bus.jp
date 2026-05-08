@@ -11,6 +11,21 @@ class BusRoutesControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "should show fragmented warning alert for fragmented route" do
+    route = bus_routes(:fragmented)
+    get bus_route_path(route)
+    assert_response :success
+    assert_select ".alert.alert-warning",
+      text: /複数路線の集約の可能性があるため一覧には表示していません/
+  end
+
+  test "should not show fragmented warning for non-fragmented route" do
+    route = bus_routes(:one)
+    get bus_route_path(route)
+    assert_response :success
+    assert_select ".alert.alert-warning", count: 0
+  end
+
   test "should list bus_stops in bus_stop_number order" do
     route = bus_routes(:one)
     later   = BusStop.create!(name: "Later Stop",   latitude: 1.0, longitude: 1.0)

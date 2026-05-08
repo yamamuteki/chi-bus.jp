@@ -17,3 +17,13 @@ two:
   saturday_rate: 1.5
   holiday_rate: 1.5
   note: MyString
+
+fragmented:
+  bus_type: 1
+  operation_company: MyOperator
+  line_name: FragmentedRoute
+  weekday_rate: 1.5
+  saturday_rate: 1.5
+  holiday_rate: 1.5
+  note: bundled
+  fragmented: true

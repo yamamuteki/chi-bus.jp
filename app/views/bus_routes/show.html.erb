@@ -7,6 +7,11 @@
     <div class="col-xs-12 col-sm-4">
       <h3><%= @bus_route.line_name %></h3>
       <p><%= "#{@bus_route.operation_company} #{@bus_route.bus_type_label}" %></p>
+      <% if @bus_route.fragmented? %>
+        <div class="alert alert-warning">
+          この路線は複数路線の集約の可能性があるため一覧には表示していません。
+        </div>
+      <% end %>
       <p>
       <span class="label label-default"><%= "平日 #{@bus_route.weekday_rate}" %></span>
       <span class="label label-primary"><%= "土曜 #{@bus_route.saturday_rate}" %></span>
