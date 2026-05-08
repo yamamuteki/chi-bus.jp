@@ -33,6 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - ユーザーは手元で `git diff` を全件レビューしている。**Claude は勝手に `git add` / `commit` / `push` / PR 作成をしない**。
 - ファイル編集およびブランチ作成は通常通り行ってよい。git に反映する操作（add / commit / push / PR）のみ、明示的な依頼があってから実行する。
+- **`develop` と `master` に直接 commit / push しない**。「コミット」「PR 作成」を依頼されたら、まず `git branch --show-current` で現在のブランチを確認し、`develop` または `master` にいたら **add / commit より前に** `git checkout -b <prefix>/<name>` で作業ブランチを切る。過去複数回この手順を飛ばして develop に直接 commit しかけているので、最初のブランチ確認は省略禁止。マージは必ず PR 経由 (本人手動マージ) で行う。
 
 ### コミットメッセージ・PR の言語ルール
 
@@ -112,12 +113,24 @@ XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮し�
 
 タスク：
 
-- `data:generate` — XML をパースし、`db/data/*.csv.gz` を出力する。重い処理なのでローカルで実行し、結果を git にコミットして運用する。最新の国土数値情報 XML に差し替えたいときに走らせる。
-- `data:load` — `db/data/*.csv.gz` を `COPY FROM STDIN` で DB に流し込む。Heroku でも実行可能で約 1 分。`db/seeds.rb` のガード経由で `bin/rails db:seed` から呼ばれるルートと、直接 `bin/rails data:load` で呼ぶルートの両方がある。
-- `bus_stop_number:generate` — `db/data/bus_stop_numbers.csv.gz` を生成。重い処理だが結果を git に commit するので CI / 通常セットアップでは load のみ呼べばよい。
-- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv.gz` (city, formatted_address) を生成。所要 10 秒程度。ISJ raw データ (db/isj/) はダウンロード必要、生成 CSV だけ commit する。
+生成タスクは 4 点セット (CSV はそれぞれ git に commit、最新ソースに差し替えたいときだけ再生成):
+
+- `data:generate` — N07 / P11 XML をパースし、`db/data/bus_stops.csv.gz` / `bus_routes.csv.gz` / `bus_route_tracks.csv.gz` / `bus_route_bus_stops.csv.gz` を出力。
+- `bus_stop_number:generate` — TrackStitcher で stitch 済み flat_coords にバス停を投影し `db/data/bus_stop_numbers.csv.gz` を生成。
+- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv.gz` (city, formatted_address) を生成。所要 10 秒程度。ISJ raw データ (`db/isj/`) はダウンロード必要、生成 CSV だけ commit する。
 - `keyword:generate` — kakasi で `db/data/keywords.csv.gz` を生成 (`libkakasi.so.2` 要、Dockerfile.dev の kakasi パッケージに同梱)。
-- 各 `*:load` — 対応する CSV を bulk UPDATE で DB に投入。
+
+ロードタスク:
+
+- `data:load` — `bus_routes` / `bus_route_tracks` / `bus_stops` / `bus_route_bus_stops` の 4 テーブルを `TRUNCATE` してから `db/data/*.csv.gz` を `COPY FROM STDIN` で流し込む (派生列 `bus_stop_number` / `city` / `formatted_address` / `keyword` は NULL のまま入る)。
+- `bus_stop_number:load` / `geocode:load` / `keyword:load` — 対応する CSV を bulk UPDATE で派生列に流し込む。
+- `db:seed` — `db/seeds.rb` の二重取り込みガード経由で `data:load` → `bus_stop_number:load` → `geocode:load` → `keyword:load` を順に呼ぶ。Heroku でも実行可能で約 1 分。新規セットアップはこれだけでよい。
+
+診断/プロファイルタスク (採番品質改善で常用):
+
+- `data:profile` / `bus_stop_number:profile` — stackprof で対応する `:generate` を計測し `tmp/*.stackprof` に出力。
+- `bus_stop_number:diagnose` — 全路線の stitch + 採番品質指標 (idx_inversions / anomaly_jumps / off_track / backward_turns 他) を `tmp/bus_stop_number_diagnostics.csv` に書き出す。`INCLUDE_FRAGMENTED=1` で fragmented 路線も含める。`tmp/chi-bus-baseline/` のベースライン CSV と diff することで採番ロジック変更の影響を測る。
+- `bus_stop_number:inspect ROUTE_ID=N` — 1 路線分の tracks / StartTerminalSelector の選択 / stitch_steps / 各バス停の closest_idx を標準出力に詳細ダンプ。diagnose で異常値が出た路線の深掘りに使う。
 
 ### テスト
 
