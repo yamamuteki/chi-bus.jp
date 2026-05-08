@@ -75,4 +75,57 @@ class StartTerminalSelectorTest < Minitest::Test
     result = StartTerminalSelector.call([ a, b ], line_name: "鹿島線", bus_route_bus_stops: stops)
     assert_equal [ 35.0, 140.0 ], result
   end
+
+  def test_station_hint_picks_terminal_near_station_stop
+    # line_name が単一トークン「温根別」だが、bus_stop 名と部分一致がない (line_name_hint nil)。
+    # 東端 terminal (35.0, 140.3) の 200m 以内に「○○駅前」があるので、station_hint が
+    # 東端を採用する (westmost fallback だと西端 35.0, 140.0 が選ばれる構造)。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0, 140.1 ], [ 35.0, 140.2 ] ])
+    c = t(3, [ [ 35.0, 140.2 ], [ 35.0, 140.3 ] ])
+    stops = [
+      brbs(1, "西の停留所", 35.0, 140.0),
+      brbs(2, "中央駅前",   35.0, 140.30002)  # 東端から経度 ≈18m
+    ]
+    result = StartTerminalSelector.call([ a, b, c ], line_name: "温根別線", bus_route_bus_stops: stops)
+    assert_equal [ 35.0, 140.3 ], result
+  end
+
+  def test_station_hint_returns_nil_when_no_station_within_radius
+    # 「駅」を含む停留所はあるが、どの terminal からも 200m を超えて離れているため station_hint
+    # は nil を返す。multi-try で同点 → westmost。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0, 140.1 ], [ 35.0, 140.2 ] ])
+    stops = [ brbs(1, "中間駅前", 35.0, 140.1) ]  # 両端から ≈9km
+    result = StartTerminalSelector.call([ a, b ], line_name: "温根別線", bus_route_bus_stops: stops)
+    assert_equal [ 35.0, 140.0 ], result
+  end
+
+  def test_station_hint_picks_closest_terminal_when_both_have_station
+    # 両端 terminal がともに駅近 (200m 以内) の場合、駅停留所との距離がより小さい terminal を
+    # 採用する (大都市圏を想定: より「駅前らしい」方を選ぶ)。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0, 140.1 ], [ 35.0, 140.2 ] ])
+    c = t(3, [ [ 35.0, 140.2 ], [ 35.0, 140.3 ] ])
+    stops = [
+      brbs(1, "西駅前", 35.0, 140.001),    # 西端から ≈91m
+      brbs(2, "東駅前", 35.0, 140.30002)  # 東端から ≈18m (こちらが近い)
+    ]
+    result = StartTerminalSelector.call([ a, b, c ], line_name: "温根別線", bus_route_bus_stops: stops)
+    assert_equal [ 35.0, 140.3 ], result
+  end
+
+  def test_line_name_hint_takes_priority_over_station_hint
+    # line_name 第 1 トークン「鹿島」が西端近くの停留所に hit (駅名ではない)。東端には駅近
+    # 停留所がある。line_name_hint が station_hint より先に評価されるので、西端が選ばれる。
+    a = t(1, [ [ 35.0, 140.0 ], [ 35.0, 140.1 ] ])
+    b = t(2, [ [ 35.0, 140.1 ], [ 35.0, 140.2 ] ])
+    c = t(3, [ [ 35.0, 140.2 ], [ 35.0, 140.3 ] ])
+    stops = [
+      brbs(1, "鹿島停留所", 35.0, 140.001),  # 西端 ≈91m、line_name token「鹿島」hit、駅なし
+      brbs(2, "東駅前",     35.0, 140.30002)  # 東端 ≈18m、駅あり (station_hint だと東端)
+    ]
+    result = StartTerminalSelector.call([ a, b, c ], line_name: "鹿島線", bus_route_bus_stops: stops)
+    assert_equal [ 35.0, 140.0 ], result
+  end
 end
