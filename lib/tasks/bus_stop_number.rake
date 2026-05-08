@@ -64,7 +64,9 @@ namespace :bus_stop_number do
     rows = []
     fallback_count = 0
     ActiveRecord::Base.logger.silence(Logger::WARN) do
-      BusRoute.find_each do |bus_route|
+      # fragmented route の bus_stop も number を埋める (直接 URL アクセスで表示する用)。
+      # default_scope で隠す対象でも、stops 自体は表示するので採番は必要。
+      BusRoute.with_fragmented.find_each do |bus_route|
         brbs = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
         result = pick_best_assignment(bus_route, brbs)
         rows.concat(result[:assignments])
@@ -147,7 +149,7 @@ namespace :bus_stop_number do
     puts "View top by total time:  bundle exec stackprof #{out} --text --total --limit 30"
   end
 
-  desc "Diagnose TrackStitcher quality per route into tmp/bus_stop_number_diagnostics.csv"
+  desc "Diagnose TrackStitcher quality per route into tmp/bus_stop_number_diagnostics.csv (set INCLUDE_FRAGMENTED=1 to include fragmented routes)"
   task diagnose: :environment do
     require "csv"
     $stdout.sync = true
@@ -158,8 +160,14 @@ namespace :bus_stop_number do
     # この値を超えたら「軌跡データが欠損して別エリアに置き去り」のサイン。
     off_track_threshold_m = 200.0
 
+    # fragmented 路線は「N07 上で 1 路線として表現できない」と判定済みなので、品質改善の
+    # 改善対象外。BusRoute の default_scope で除外され、ノイズ除去された状態で計測される。
+    # 全路線含めて見たい場合は INCLUDE_FRAGMENTED=1 を渡す。
+    scope = ENV["INCLUDE_FRAGMENTED"] ? BusRoute.with_fragmented : BusRoute.all
+    puts "Diagnose target: #{scope.count} routes (#{ENV['INCLUDE_FRAGMENTED'] ? 'INCLUDING' : 'EXCLUDING'} fragmented)"
+
     ActiveRecord::Base.logger.silence(Logger::WARN) do
-      BusRoute.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
+      scope.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
         # compute_assignments と同じ id 順 brbs を使うことで、LineNameOrienter (内部で `find` を
         # 使うため順序依存) の挙動が両者で揃う。順序が違うと A/B 候補で別の stop が match し、
         # 反転判定が変わり、stored bus_stop_number と diagnose 計測の flat がずれていた。
@@ -314,7 +322,7 @@ namespace :bus_stop_number do
   desc "Inspect a single route's stitch + bus_stop_number assignment (ROUTE_ID=...)"
   task inspect: :environment do
     route_id = Integer(ENV.fetch("ROUTE_ID"))
-    bus_route = BusRoute.find(route_id)
+    bus_route = BusRoute.with_fragmented.find(route_id)
     tracks = bus_route.bus_route_tracks.to_a
 
     puts "Route ##{bus_route.id}: #{bus_route.operation_company} #{bus_route.line_name}"
