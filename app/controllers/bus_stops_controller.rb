@@ -1,7 +1,15 @@
 class BusStopsController < ApplicationController
   def index
     if params[:q] then
-      @bus_stops = BusStop.preload(:bus_routes).where("lower(keyword) like lower(?)", "%#{params[:q]}%").order("name, latitude DESC").limit(100)
+      # `keyword` と `name` の両方に GIN trigram インデックス (pg_trgm) を張っている。
+      # `lower()` で wrap すると planner が index を使えなくなるため ILIKE で書く。
+      # OR にしているのは keyword:load 未実行 / kakasi 失敗で keyword が NULL の停留所も
+      # name 側で hit させて Google Places フォールバックに流れないようにする保険。
+      # 3 文字以上の検索なら BitmapOr で両 index を結合して ~0.3ms。
+      pattern = "%#{params[:q]}%"
+      @bus_stops = BusStop.preload(:bus_routes)
+                          .where("keyword ILIKE :p OR name ILIKE :p", p: pattern)
+                          .order("name, latitude DESC").limit(100)
       if @bus_stops.empty?
         client = GooglePlaces::Client.new(ENV["GOOGLE_API_KEY"])
         spots = Rails.cache.fetch(params[:q]) do
