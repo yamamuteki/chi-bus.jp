@@ -13,8 +13,11 @@ class LineNameOrienter
   # 「前橋」「鹿島」のような 2 文字地名は弾かないよう、長さ判定は別途 length < 2 で行う。
   NON_PLACE_RE = /\A(?:線|ルート|号|急行|方面|経由|系統|コース|本線|支線|間|発|行き?|便|号線)\z/
 
-  # 区切り (読点・中黒・矢印・波ダッシュ・⇔・全角空白・半角空白・ハイフン)。
-  SEPARATOR_RE = /[、・→〜～⇔　\s\-]+/
+  # 区切り (読点・中黒・矢印・波ダッシュ・⇔・全角/半角空白・ハイフン・全角/半角括弧)。
+  # 括弧は「○○線（○○経由）」のように補足区分として使われるので、内部を独立 token として
+  # 取り出すために区切り扱いする。「東経由」「市役所」のような汎用 token は後段の
+  # NON_PLACE_RE / 部分一致で結局 hit しないか、unique terminal に対応しないので無害。
+  SEPARATOR_RE = /[、・→〜～⇔　\s\-（）()]+/
 
   # 末尾の不要 suffix を剥がすパターン。「○○駅線」「○○ルート」のような token から
   # 末尾の修飾語を除去すると、bus_stop 名 (「○○駅」など) との部分一致率が上がる。
@@ -32,6 +35,20 @@ class LineNameOrienter
   # @return [Array<[id, bus_stop_number]>]
   def self.call(bus_route, brbs_list, assignments)
     new(bus_route, brbs_list, assignments).call
+  end
+
+  # line_name から地名 token を抽出する。stitch 起点選択 (StartTerminalSelector) でも
+  # 同じ token を使うため class method で公開している。
+  # 括弧は SEPARATOR_RE で区切るため、内部 token は別途取り出される (例: 「○○線（東口）」 →
+  # ["○○", "東口"])。汎用語は NON_PLACE_RE / bus_stop 部分一致で自然に絞られる。
+  def self.parse_tokens(line_name)
+    return [] if line_name.nil? || line_name.empty?
+    normalized = line_name.gsub(/(?<!\p{Katakana})ー/, "-")
+    normalized.split(SEPARATOR_RE).map { |t|
+      cleaned = t.gsub(LEADING_PREFIX_RE, "")
+      cleaned = cleaned.sub(TRAILING_SUFFIX_RE, "") while cleaned.match?(TRAILING_SUFFIX_RE)
+      cleaned
+    }.reject { |t| t.empty? || t.length < 2 || NON_PLACE_RE === t }
   end
 
   def initialize(bus_route, brbs_list, assignments)
@@ -69,18 +86,6 @@ class LineNameOrienter
   private
 
   def parse_tokens(line_name)
-    return [] if line_name.nil? || line_name.empty?
-    # 「ー」(U+30FC, 長音) は本来 katakana の音引きだが、直前文字が katakana 以外
-    # (漢字・ひらがな・ASCII 等) の場合は区切りとして使われていることが多い
-    # (例: 「高崎駅ー南陽台線」)。前処理でハイフンに置換。
-    # 「ポーラスター」「コーヒー」のような katakana 語では音引きとしてそのまま残る。
-    normalized = line_name.gsub(/(?<!\p{Katakana})ー/, "-")
-    normalized.split(SEPARATOR_RE).map { |t|
-      # 括弧内除去 → 先頭の番号 prefix → 末尾の修飾 suffix を順に剥がす。
-      cleaned = t.gsub(/\(.*?\)/, "").gsub(LEADING_PREFIX_RE, "")
-      # 末尾の suffix は複数連続する場合もあるので gsub で繰り返し剥がす。
-      cleaned = cleaned.sub(TRAILING_SUFFIX_RE, "") while cleaned.match?(TRAILING_SUFFIX_RE)
-      cleaned
-    }.reject { |t| t.empty? || t.length < 2 || NON_PLACE_RE === t }
+    self.class.parse_tokens(line_name)
   end
 end

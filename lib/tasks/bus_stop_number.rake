@@ -15,21 +15,93 @@ namespace :bus_stop_number do
   # 6000+ 路線 × N クエリの構成のため、開発環境の SQL クエリログ生成
   # (BacktraceCleaner + Thread.each_caller_location) がプロファイル上 30%+ を占める。
   # silence で WARN 以上に絞ると generate 全体が 30% ほど短縮される。
+  # 路線 1 つに対して採番結果一式 (assignments / flat_coords / 各種 diagnostic 構造) を返す。
+  # 内部で「StartTerminalSelector 起点版」と「westmost fallback 版」を両方計算し、
+  # idx 上の inversion が少ない方を採用する。selector が起点を決められない場合 (terminal 1 つ
+  # 以下 / cycle) は 1 回だけ stitch する。
+  #
+  # 戻り値の :stitch / :number_result はすべて picked path のもの。compute_assignments と
+  # diagnose の両方で同じ選択結果を扱うために共通化している。
+  def self.pick_best_assignment(bus_route, brbs)
+    tracks = bus_route.bus_route_tracks.to_a
+    start_a = StartTerminalSelector.call(tracks, line_name: bus_route.line_name, bus_route_bus_stops: brbs)
+
+    if start_a.nil?
+      return run_pipeline(tracks, bus_route, brbs, start: nil, fallback: false)
+    end
+
+    candidate_a = run_pipeline(tracks, bus_route, brbs, start: start_a, fallback: false)
+    candidate_b = run_pipeline(tracks, bus_route, brbs, start: nil, fallback: true)
+
+    inv_a = count_inversions(candidate_a[:flat_coords], brbs, candidate_a[:assignments])
+    inv_b = count_inversions(candidate_b[:flat_coords], brbs, candidate_b[:assignments])
+
+    # A 優位 or 同点なら A (selector のメリットを残す)。B が明確に良ければ fallback。
+    # 過去観察: selector は bridge 距離合計を最小化するが、それが順序最良と一致しないケースが
+    # 935 路線あった (例: 石見銀山号 1→30、祖谷線 0→22)。inversion 多い方を捨てる安全網。
+    inv_a <= inv_b ? candidate_a : candidate_b
+  end
+
+  # stitch + numberer + LineNameOrienter を 1 回回し、後続評価のため stitch/number_result も返す。
+  def self.run_pipeline(tracks, bus_route, brbs, start:, fallback:)
+    stitch = TrackStitcher.call_with_diagnostics(tracks, start: start)
+    number_result = BusStopNumberer.call_with_diagnostics(
+      flat_coords: stitch.flat_coords,
+      bus_route_bus_stops: brbs,
+      bridge_segment_indices: stitch.bridge_segment_indices
+    )
+    oriented = LineNameOrienter.call(bus_route, brbs, number_result.assignments)
+    {
+      stitch: stitch,
+      number_result: number_result,
+      flat_coords: stitch.flat_coords,
+      assignments: oriented,
+      fallback: fallback
+    }
+  end
+
   def self.compute_assignments
     rows = []
+    fallback_count = 0
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       BusRoute.find_each do |bus_route|
-        bus_route_bus_stops = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
-        flat_coords = TrackStitcher.call(bus_route.bus_route_tracks.to_a)
-        assignments = BusStopNumberer.call(flat_coords: flat_coords, bus_route_bus_stops: bus_route_bus_stops)
-        # line_name の地名ヒントで採番方向を補正。「○○～△△」のように起点/終点の
-        # 名前が含まれる路線で、現状の番号が逆向きなら全反転して整える。
-        assignments = LineNameOrienter.call(bus_route, bus_route_bus_stops, assignments)
-        rows.concat(assignments)
+        brbs = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
+        result = pick_best_assignment(bus_route, brbs)
+        rows.concat(result[:assignments])
+        fallback_count += 1 if result[:fallback]
       end
     end
     rows.sort_by! { |id, _| id }
+    puts "  fallback to westmost: #{fallback_count} routes"
     rows
+  end
+
+  # bus_stop_number 順に並べたバス停の「flat_coords 上での最近接 idx」が単調か。
+  # 5 idx 以上戻ったら inversion とカウントする (SimplifyRb の小ぶれを許容)。
+  # diagnose タスクの idx_inversions と同じ計算。
+  def self.count_inversions(flat_coords, brbs, assignments)
+    return 0 if flat_coords.empty?
+    num_by_id = assignments.to_h
+    ordered = brbs.map { |b| [ b, num_by_id[b.id] ] }
+                  .select { |_, n| n }
+                  .sort_by { |_, n| n }
+    inversions = 0
+    prev_idx = -1
+    ordered.each do |b, _|
+      bs = b.bus_stop
+      min_idx = 0
+      min_dist_sq = Float::INFINITY
+      flat_coords.each_with_index do |c, idx|
+        d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
+        if d < min_dist_sq
+          min_dist_sq = d
+          min_idx = idx
+        end
+      end
+      inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
+      prev_idx = min_idx
+    end
+    inversions
   end
 
   # 2 点間の haversine 距離 (m)。diagnose で連続バス停間の距離評価に使う。
@@ -88,12 +160,13 @@ namespace :bus_stop_number do
 
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       BusRoute.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
-        stitch = TrackStitcher.call_with_diagnostics(bus_route.bus_route_tracks.to_a)
-        brbs_list = bus_route.bus_route_bus_stops.to_a
-        number_result = BusStopNumberer.call_with_diagnostics(
-          flat_coords: stitch.flat_coords,
-          bus_route_bus_stops: brbs_list
-        )
+        # compute_assignments と同じ id 順 brbs を使うことで、LineNameOrienter (内部で `find` を
+        # 使うため順序依存) の挙動が両者で揃う。順序が違うと A/B 候補で別の stop が match し、
+        # 反転判定が変わり、stored bus_stop_number と diagnose 計測の flat がずれていた。
+        brbs_list = bus_route.bus_route_bus_stops.sort_by(&:id)
+        picked = pick_best_assignment(bus_route, brbs_list)
+        stitch = picked[:stitch]
+        number_result = picked[:number_result]
 
         # 軌跡から離れたバス停の集計。データ欠損路線を識別する指標。
         off_track_count = 0
@@ -254,7 +327,13 @@ namespace :bus_stop_number do
     end
     puts ""
 
-    result = TrackStitcher.call_with_diagnostics(tracks)
+    brbs_for_start = bus_route.bus_route_bus_stops.includes(:bus_stop).to_a
+    start = StartTerminalSelector.call(tracks, line_name: bus_route.line_name, bus_route_bus_stops: brbs_for_start)
+    puts "Start selection:"
+    puts "  picked: #{start.inspect}  (nil = TrackStitcher 最西端 fallback)"
+    puts ""
+
+    result = TrackStitcher.call_with_diagnostics(tracks, start: start)
     puts "Stitch summary:"
     puts "  total_tracks: #{result.total_tracks}, skipped_parallel: #{result.skipped_parallel}"
     puts "  reversed_count: #{result.reversed_count}, isolated_count: #{result.isolated_count}"
