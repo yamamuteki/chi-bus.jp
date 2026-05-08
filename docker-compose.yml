@@ -29,7 +29,7 @@ services:
       - "4444:4444"
 
   db:
-    image: postgres:15
+    image: postgres:17
     platform: linux/arm64
     ports:
       - "5432:5432"

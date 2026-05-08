@@ -149,6 +149,15 @@ class LineNameOrienterTest < Minitest::Test
     assert_equal assignments, LineNameOrienter.call(route, list, assignments)
   end
 
+  def test_parens_split_into_independent_tokens
+    # 全角/半角括弧は SEPARATOR_RE で区切り扱い。「○○線（東口）」 → ["○○", "東口"]
+    # 内部の token も hit すれば match 候補に入る。
+    assert_equal [ "本八幡", "市役所", "松戸", "八ヶ崎" ],
+                 LineNameOrienter.parse_tokens("本八幡（市役所）-松戸（八ヶ崎）線")
+    assert_equal [ "新宿駅西口", "小田急", "神奈川県庁" ],
+                 LineNameOrienter.parse_tokens("新宿駅西口(小田急)-神奈川県庁")
+  end
+
   def test_handles_nil_bus_stop_number_in_assignments
     # 一部 brbs に bus_stop_number が nil の場合、nil は反転対象外で nil のまま。
     route = RouteDouble.new(line_name: "東京駅～鹿島")

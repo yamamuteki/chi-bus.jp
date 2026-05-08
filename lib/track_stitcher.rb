@@ -36,6 +36,7 @@ class TrackStitcher
     :connection_large_jump_count,
     :connection_count,
     :stitch_steps,
+    :bridge_segment_indices,
     keyword_init: true
   )
 
@@ -54,16 +55,21 @@ class TrackStitcher
   # 数倍 = 「side branch にしては長過ぎる」を区別する目安。
   SPUR_MAX_LENGTH_M = 500.0
 
-  def self.call(tracks)
-    new(tracks).run.flat_coords
+  def self.call(tracks, start: nil)
+    new(tracks, start: start).run.flat_coords
   end
 
-  def self.call_with_diagnostics(tracks)
-    new(tracks).run
+  def self.call_with_diagnostics(tracks, start: nil)
+    new(tracks, start: start).run
   end
 
-  def initialize(tracks)
+  # @param start [Array<Float>, nil] 起点とする degree-1 endpoint の coord [lat, lng]。
+  #   nil なら現状の「最西端 terminal → 最西端 endpoint」fallback を使う。
+  #   指定された coord を head に持つ piece が見つかれば forward、tail に持つなら reversed
+  #   で起点採用。見つからない場合は fallback。
+  def initialize(tracks, start: nil)
     @tracks = tracks
+    @start = start
   end
 
   def run
@@ -85,7 +91,8 @@ class TrackStitcher
         connection_jump_max: 0.0,
         connection_large_jump_count: 0,
         connection_count: 0,
-        stitch_steps: []
+        stitch_steps: [],
+        bridge_segment_indices: []
       )
     end
 
@@ -107,6 +114,15 @@ class TrackStitcher
       elsif dup.map { |p| p[:coords] }.uniq.size == 1
         # 全 member の coords が完全一致 → 真の重複。id 最小を残す。
         [ dup.max_by { |p| -p[:id] } ]
+      elsif haversine_meters(dup.first[:head][0], dup.first[:head][1],
+                             dup.first[:tail][0], dup.first[:tail][1]) <= SPUR_MAX_LENGTH_M
+        # head/tail が一致するが coords 数が違う + 端点間距離が短い (≤500m) →
+        # 解像度違いで描かれた同一の短セグメント。並行軌跡 (= 行き帰りで別ルート) なら
+        # endpoint 間距離は普通 km オーダーになるので、500m 以下の「並行軌跡」は地理的に
+        # ありえないケースがほとんど。alternate に回すと return phase で長距離ジャンプを
+        # 引き起こすので (玉野渋川特急線 20585: 19km の bridge segment が発生し、numberer が
+        # 玉野営業所前を岡山駅の後ろに置いた)、coords 数最大を残して残りは捨てる。
+        [ dup.max_by { |p| [ p[:coords].size, -p[:id] ] } ]
       else
         # coords が異なる → 行き帰り別経路。primary (coords 多い方、tie は id 若い方)
         # と alternate (残り) に分ける。alternate は outbound phase で除外、return phase で使う。
@@ -143,7 +159,19 @@ class TrackStitcher
       terminal_starts << { piece: p, lng: p[:tail][1], reversed: true } if endpoint_counts[p[:tail]] == 1
     end
 
-    start_meta = if !terminal_starts.empty?
+    # @start が指定されていれば、その coord を head/tail に持つ terminal piece を起点に採用。
+    # StartTerminalSelector が line_name や bridge 合計から判定した起点をここで使う。
+    explicit_start_meta = nil
+    if @start
+      explicit_start_meta = terminal_starts.find { |m|
+        coord = m[:reversed] ? m[:piece][:tail] : m[:piece][:head]
+        coord == @start
+      }
+    end
+
+    start_meta = if explicit_start_meta
+      explicit_start_meta
+    elsif !terminal_starts.empty?
       terminal_starts.min_by { |m| [ m[:lng], m[:piece][:id] ] }
     else
       # 終端が無い (= 純粋循環) 場合のみ、各 piece の westmost 端点を候補に最西選定。
@@ -161,6 +189,10 @@ class TrackStitcher
     reversed_count = start_reversed ? 1 : 0
     connection_jumps = []
     stitch_steps = [ StitchStep.new(track_id: start[:id], reversed: start_reversed, join_distance: 0.0, coords_size: start[:coords].size, isolated: false) ]
+    # flat_coords 上で「stitcher が track 間を強引に繋いだ」virtual segment の index を記録する。
+    # 後段の BusStopNumberer がこれを skip することで、軌跡上に存在しない直線 (例: 19km の bridge)
+    # にバス停が誤って射影されるのを防ぐ。
+    bridge_segment_indices = []
 
     # Leaf spur 挿入: 現 flat.last が junction (重複度 3+) で、未使用の leaf spur がある間 take。
     # 短い枝 (coords 少ない) → side branch として先に処理。長い枝 (本線続き) は greedy に任せる。
@@ -207,6 +239,7 @@ class TrackStitcher
         if coords.first == flat.last
           flat.concat(coords[1..])
         else
+          bridge_segment_indices << flat.size - 1
           flat.concat(coords)
         end
         used[spur[:id]] = true
@@ -262,6 +295,7 @@ class TrackStitcher
       if coords.first == flat.last
         flat.concat(coords[1..])
       else
+        bridge_segment_indices << flat.size - 1
         flat.concat(coords)
       end
       used[best_piece[:id]] = true
@@ -279,6 +313,7 @@ class TrackStitcher
       join_dist = haversine_meters(flat.last[0], flat.last[1], p[:coords].first[0], p[:coords].first[1])
       connection_jumps << join_dist
       stitch_steps << StitchStep.new(track_id: p[:id], reversed: false, join_distance: join_dist, coords_size: p[:coords].size, isolated: true)
+      bridge_segment_indices << flat.size - 1
       flat.concat(p[:coords])
     end
 
@@ -302,7 +337,8 @@ class TrackStitcher
       connection_jump_max: connection_jumps.max || 0.0,
       connection_large_jump_count: connection_jumps.count { |d| d > LARGE_JUMP_THRESHOLD_M },
       connection_count: connection_jumps.size,
-      stitch_steps: stitch_steps
+      stitch_steps: stitch_steps,
+      bridge_segment_indices: bridge_segment_indices
     )
   end
 

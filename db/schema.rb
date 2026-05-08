@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_07_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_08_070809) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
 
   create_table "bus_route_bus_stops", id: :serial, force: :cascade do |t|
     t.integer "bus_route_id"
@@ -37,6 +38,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_07_180000) do
   create_table "bus_routes", id: :serial, force: :cascade do |t|
     t.integer "bus_type"
     t.datetime "created_at", precision: nil, null: false
+    t.boolean "fragmented", default: false, null: false
     t.float "holiday_rate"
     t.string "line_name"
     t.string "note"
@@ -57,6 +59,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_07_180000) do
     t.string "name"
     t.string "prefecture"
     t.datetime "updated_at", precision: nil, null: false
+    t.index ["keyword"], name: "index_bus_stops_on_keyword", opclass: :gin_trgm_ops, using: :gin
+    t.index ["name"], name: "index_bus_stops_on_name", opclass: :gin_trgm_ops, using: :gin
   end
 
   add_foreign_key "bus_route_bus_stops", "bus_routes"

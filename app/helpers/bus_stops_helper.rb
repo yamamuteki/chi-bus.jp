@@ -11,6 +11,7 @@ module BusStopsHelper
     if bus_stop.is_a? Place then
       "周辺"
     else
+      # BusRoute の default_scope で fragmented 路線は除外済み。
       bus_stop.bus_routes.size
     end
   end

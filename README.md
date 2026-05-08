@@ -1,6 +1,6 @@
 # chi-bus.jp
 
-千葉・東京・神奈川・埼玉（および茨城・栃木・群馬の一部）を対象とした、バス停と路線情報を提供する Web サービスです。
+全国 47 都道府県のバス停と路線情報を提供する Web サービスです。
 
 - [https://www.chi-bus.jp](https://www.chi-bus.jp)
 - [ERD](./erd.pdf)
@@ -33,23 +33,13 @@ docker compose run --rm app rails test
 
 ## Docker でのデータ投入
 
-バス停・路線データは `db/data/*.csv.gz` として git 管理されており、PostgreSQL の `COPY` 経由で投入します。約 1 分以内で完了します。
-
-```
-docker compose run --rm app bin/rails data:load
-```
-
-`db/seeds.rb` は二重取り込みガードのみで、データ未投入なら自動的に `data:load` を呼びます。すでにデータが入っていればスキップします。
+バス停・路線データは `db/data/*.csv.gz` として git 管理されており、`db:seed` で PostgreSQL の `COPY` 経由で投入します。約 1 分以内で完了します。
 
 ```
 docker compose run --rm app bin/rails db:seed
 ```
 
-国土交通省「国土数値情報」の XML を最新版に差し替えてデータを再生成したい場合は `data:generate` で `db/data/*.csv.gz` を更新します（重い処理、ローカルで実行して結果を git にコミット）。
-
-```
-docker compose run --rm app bin/rails data:generate
-```
+`db/seeds.rb` は二重取り込みガード付きで、データ未投入のときだけ取り込みを走らせ、すでに入っていればスキップします。
 
 ## Docker での ERD 生成
 

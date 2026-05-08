@@ -22,17 +22,22 @@ class BusStopNumberer
   # (経度方向は緯度依存だが、200m 閾値の判定なら近似で十分。)
   DEG_TO_M = 111_000.0
 
-  def self.call(flat_coords:, bus_route_bus_stops:)
-    new(flat_coords, bus_route_bus_stops).call_with_diagnostics.assignments
+  def self.call(flat_coords:, bus_route_bus_stops:, bridge_segment_indices: [])
+    new(flat_coords, bus_route_bus_stops, bridge_segment_indices).call_with_diagnostics.assignments
   end
 
-  def self.call_with_diagnostics(flat_coords:, bus_route_bus_stops:)
-    new(flat_coords, bus_route_bus_stops).call_with_diagnostics
+  def self.call_with_diagnostics(flat_coords:, bus_route_bus_stops:, bridge_segment_indices: [])
+    new(flat_coords, bus_route_bus_stops, bridge_segment_indices).call_with_diagnostics
   end
 
-  def initialize(flat_coords, bus_route_bus_stops)
+  def initialize(flat_coords, bus_route_bus_stops, bridge_segment_indices = [])
     @flat_coords = flat_coords
     @brbs = bus_route_bus_stops
+    # TrackStitcher が track 間を強引に繋いだ virtual segment の index 集合。射影対象から除外する。
+    # これがないと、19km 級の bridge segment 上に偶然乗る位置にあるバス停 (例: 玉野渋川特急線
+    # 20585 の 玉野営業所前) が、本来の位置ではなく flat 末尾に近い高い curvilinear position に
+    # 押し出される (segment index 137 + t=0.978 → 路線終点扱い)。
+    @bridge_segments = bridge_segment_indices.to_set
   end
 
   def call_with_diagnostics
@@ -68,6 +73,7 @@ class BusStopNumberer
       best_dist_sq = Float::INFINITY
 
       @flat_coords.each_cons(2).with_index do |(p, q), i|
+        next if @bridge_segments.include?(i)
         dx = q[0] - p[0]
         dy = q[1] - p[1]
         seg_len_sq = dx * dx + dy * dy

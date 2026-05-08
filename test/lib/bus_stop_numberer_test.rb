@@ -46,6 +46,38 @@ class BusStopNumbererTest < Minitest::Test
     assert_equal [ 1, 2, 3 ], result.map { |_, n| n }.sort
   end
 
+  def test_bridge_segment_is_excluded_from_projection
+    # flat = [A, B, C, D] (3 segments)。segment 1 (B→C) を bridge として除外すると、
+    # 「B-C 間の直線」上に乗るバス停は本来の最近接 (segment 0 or 2) に射影されるべき。
+    # 玉野渋川特急線 20585 の再現テスト: 19km の bridge 上に偶然乗る位置にある
+    # バス停を、bridge を除外することで正しい side に射影する。
+    flat = [ [ 35.0, 140.0 ], [ 35.0, 140.1 ], [ 35.0, 140.5 ], [ 35.0, 140.6 ] ]
+    # bridge: segment 1 (140.1 → 140.5) は 40km の virtual jump とみなす。
+    # near_left は (35.0, 140.05) で segment 0 上 (curvilinear position 0.5)
+    # near_bridge は (35.0, 140.3) で segment 1 (bridge) 上にあり、bridge を除外しないと
+    # そっちが最近接になってしまう。除外すれば segment 0 の終端 (t=1) または
+    # segment 2 の始点 (t=0) に射影される。
+    near_left = brbs(1, 35.0, 140.05)
+    near_bridge_naive = brbs(2, 35.0, 140.3)  # 本来 segment 0 末端 〜 segment 2 始点 のあたり
+    near_right = brbs(3, 35.0, 140.55)
+    result = BusStopNumberer.call(
+      flat_coords: flat,
+      bus_route_bus_stops: [ near_right, near_bridge_naive, near_left ],
+      bridge_segment_indices: [ 1 ]
+    )
+    h = result.to_h
+    # bridge を除外しなければ near_bridge_naive は segment 1 t=0.5 に射影され position 1.5。
+    # near_left (segment 0 t=0.5) → position 0.5。near_right (segment 2 t=0.5) → position 2.5。
+    # → 順序 1, 2, 3 になっていただろう。
+    # bridge を除外すると near_bridge_naive は segment 0 (t=1) または segment 2 (t=0) に
+    # 射影され、距離計算の結果近い方が採用される。両方の curvilinear position は
+    # 1.0 / 2.0 で、segment 2 の方が物理的に近い (140.5 の方が 140.3 から近い)。
+    # よって順序: near_left=1 (pos 0.5), near_bridge_naive=2 (pos 2.0), near_right=3 (pos 2.5)。
+    assert_equal 1, h[1]
+    assert_equal 2, h[2]
+    assert_equal 3, h[3]
+  end
+
   def test_circular_route_picks_first_pass_by_distance
     # 循環ルート: flat が同じ場所を 2 回通る。バス停の最近接 idx は距離 (微差) で
     # どちらかに決まる。これが現状ロジックの限界 (循環で順序が崩れうる)。
