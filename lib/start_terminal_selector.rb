@@ -9,9 +9,13 @@
 #   1. line_name の第 1 トークン (例: 「館林・邑楽・千代田線」 → 「館林」) に部分一致する
 #      bus_stop を見つけ、最近接 terminal を採用する。距離が HINT_MAX_DISTANCE_M を超えた
 #      場合は弱い hint とみなして次へ。
-#   2. 各 terminal を起点に TrackStitcher を試行し、bridge segment 距離合計が最小の起点
+#   2. 半径 STATION_HINT_RADIUS_M 以内に「駅」を含む bus_stop がある terminal を優先採用
+#      する。バス路線は鉄道との接続点 (= 駅) を主要 hub にすることが多く、line_name が単一
+#      トークン (例: 「温根別線」) で第 1 トークン hint が発火しない路線でも、駅起点に倒す
+#      ことで利用者目線の自然な向きになる。
+#   3. 各 terminal を起点に TrackStitcher を試行し、bridge segment 距離合計が最小の起点
 #      を採用する。
-#   3. それでも決まらない (terminal 1 つ以下、純粋循環、両方失敗) → nil を返して
+#   4. それでも決まらない (terminal 1 つ以下、純粋循環、両方失敗) → nil を返して
 #      TrackStitcher の最西端 fallback に委ねる。
 #
 # 重要: TrackStitcher の依存を増やさないため、本クラスを通さず TrackStitcher を直接呼んでも
@@ -24,6 +28,11 @@ class StartTerminalSelector
   # しか採用しない。それ以上離れている場合は line_name と terminal の対応が弱いと判断し、
   # bridge 最小化 fallback に任せる。
   HINT_MAX_DISTANCE_M = 1_000.0
+
+  # terminal の半径この距離以内に「駅」を含む bus_stop があれば駅近 terminal とみなす。
+  # 200m に設定: 駅前ロータリーは概ね 100〜150m、少し離れたバス停も拾える距離。これより甘く
+  # する (例 500m) と「駅と無関係なバス停が偶然 "駅" を含む地名」を誤って拾うリスクが上がる。
+  STATION_HINT_RADIUS_M = 200.0
 
   def self.call(tracks, line_name: nil, bus_route_bus_stops: nil)
     new(tracks, line_name, bus_route_bus_stops).call
@@ -42,6 +51,11 @@ class StartTerminalSelector
 
     if @line_name && @brbs && !@brbs.empty?
       hint = line_name_hint
+      return hint if hint
+    end
+
+    if @brbs && !@brbs.empty?
+      hint = station_hint
       return hint if hint
     end
 
@@ -74,6 +88,28 @@ class StartTerminalSelector
     bs = matched.bus_stop
     closest, dist = nearest_terminal(bs.latitude, bs.longitude)
     dist <= HINT_MAX_DISTANCE_M ? closest : nil
+  end
+
+  # 「駅」を名前に含む bus_stop が STATION_HINT_RADIUS_M 以内にある terminal を優先する。
+  # 複数の terminal が条件を満たす場合は、駅停留所との距離が最小のものを採用 (大都市圏で
+  # 両端 terminal が駅近のときは「より駅前らしい方」が選ばれる)。
+  def station_hint
+    station_stops = @brbs.select { |b| b.bus_stop.name.include?("駅") }
+    return nil if station_stops.empty?
+
+    best_terminal = nil
+    best_dist = Float::INFINITY
+    @terminals.each do |coord|
+      station_stops.each do |b|
+        d = haversine(coord[0], coord[1], b.bus_stop.latitude, b.bus_stop.longitude)
+        if d < best_dist
+          best_dist = d
+          best_terminal = coord
+        end
+      end
+    end
+
+    best_dist <= STATION_HINT_RADIUS_M ? best_terminal : nil
   end
 
   # 各 terminal を起点に stitcher を回し、bridge segment の距離合計が最小の起点を返す。
