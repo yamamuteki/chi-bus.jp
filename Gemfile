@@ -91,9 +91,7 @@ gem "cache_clear_rails"
 gem "simplify_rb"
 gem "simplecov", require: false, group: :test
 gem "rails-erd", group: :development
-# rails keyword:generate タスクで使用
-gem "kakasi_parser", group: :development
-# kakasi gem の実行時依存（Ruby 4.0 で default gem から外れるため明示）
-gem "fiddle", group: :development
+# lib/kakasi.rb で libkakasi.so.2 を attach するのに使用
+gem "ffi"
 # data:profile タスクで使用 (sampling profiler、低オーバーヘッド)
 gem "stackprof", require: false, group: :development

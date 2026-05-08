@@ -47,7 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Ruby のバージョンは `.ruby-version` で固定。
 - 全環境（development / test / production）で **PostgreSQL**。`docker-compose up` で app / db / selenium のコンテナが揃う。`Dockerfile.dev` が development 用、`Dockerfile`（rails new デフォルト）が production 用。
-- `kakasi_parser` は development グループに常駐。`keyword:generate`（後述）が要求する。OS 側の `kakasi` コマンドも要るが `Dockerfile.dev` に同梱済み。ホスト直で `bundle install` すると build に失敗するので Docker 経由で動かす前提。
+- `keyword:generate` (後述) は `libkakasi.so.2` を要求する。`Dockerfile.dev` に kakasi コマンドを入れているのでランタイム共有ライブラリも一緒に入る。`lib/kakasi.rb` から FFI で attach する。
 
 ## よく使うコマンド
 
@@ -87,7 +87,7 @@ CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_
 
 ### 検索キーワード
 
-`bus_stops.keyword` は「停留所名 + kakasi で変換したローマ字 + ひらがな + カタカナ」を空白区切りで連結したテキストで、漢字・かな・ローマ字いずれの入力でも `LIKE` でヒットする。生成は `lib/tasks/keyword.rake` の `keyword:generate`（要 `kakasi_parser`）。kakasi の内部エンコーディング (CP932) で表現できない希少漢字を含む停留所名 (47 都道府県分で 22 件) は変換失敗するため、`begin/rescue` で `bus_stop.name` 単体にフォールバックする。
+`bus_stops.keyword` は「停留所名 + kakasi で変換したローマ字 + ひらがな + カタカナ」を空白区切りで連結したテキストで、漢字・かな・ローマ字いずれの入力でも `LIKE` でヒットする。生成は `lib/tasks/keyword.rake` の `keyword:generate`。kakasi の内部エンコーディング (CP932) で表現できない希少漢字を含む停留所名 (47 都道府県分で 22 件) は変換失敗するため、`begin/rescue` で `bus_stop.name` 単体にフォールバックする。kakasi の呼び出しは `lib/kakasi.rb` (FFI で `libkakasi.so.2` を attach、元 `kakasi` gem の代替) と `lib/kakasi_parser.rb` (元 `kakasi_parser` gem のポート、`{a|b}` 形式の曖昧読み候補を直積で展開) に分離。
 
 ### 派生データの計算ロジック (`lib/`)
 
@@ -116,7 +116,7 @@ XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮し�
 - `data:load` — `db/data/*.csv.gz` を `COPY FROM STDIN` で DB に流し込む。Heroku でも実行可能で約 1 分。`db/seeds.rb` のガード経由で `bin/rails db:seed` から呼ばれるルートと、直接 `bin/rails data:load` で呼ぶルートの両方がある。
 - `bus_stop_number:generate` — `db/data/bus_stop_numbers.csv.gz` を生成。重い処理だが結果を git に commit するので CI / 通常セットアップでは load のみ呼べばよい。
 - `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv.gz` (city, formatted_address) を生成。所要 10 秒程度。ISJ raw データ (db/isj/) はダウンロード必要、生成 CSV だけ commit する。
-- `keyword:generate` — kakasi で `db/data/keywords.csv.gz` を生成 (kakasi gem 要)。
+- `keyword:generate` — kakasi で `db/data/keywords.csv.gz` を生成 (`libkakasi.so.2` 要、Dockerfile.dev の kakasi パッケージに同梱)。
 - 各 `*:load` — 対応する CSV を bulk UPDATE で DB に投入。
 
 ### テスト

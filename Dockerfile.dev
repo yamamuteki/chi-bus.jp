@@ -6,7 +6,6 @@ RUN apt-get update \
         nodejs \
         graphviz \
         kakasi \
-        libkakasi2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
