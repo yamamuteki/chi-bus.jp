@@ -8,7 +8,7 @@
 ## 環境変数
 
 - `GOOGLE_PLACES_API_KEY` — Google Places API のキー（検索 0 件時のフォールバック用、サーバーサイド呼び出し）
-- `GOOGLE_MAPS_API_KEY` — Google Maps JavaScript API のキー（地図表示用、HTML に埋め込まれるためリファラ制限を推奨）
+- `GOOGLE_MAPS_JS_API_KEY` — Google Maps JavaScript API のキー（地図表示用、HTML に埋め込まれるためリファラ制限を推奨）
 - `GA_TRACKER_ID` — Google Analytics トラッカー ID（production のみ。未設定なら計測しない）
 - `RAILS_DATABASE_HOST`
 - `RAILS_DATABASE_PORT`
@@ -60,7 +60,7 @@ DB セットアップとキャッシュクリアは buildpack 方式で行いま
 1. Heroku アカウントを作成し、Heroku web console でアプリを作成
 2. `heroku login`
 3. Heroku Postgres アドオンを追加
-4. config vars に `GOOGLE_PLACES_API_KEY`、`GOOGLE_MAPS_API_KEY`、`GA_TRACKER_ID`、`SECRET_KEY_BASE`、`RAILS_LOG_TO_STDOUT=enabled`、`RAILS_SERVE_STATIC_FILES=enabled` などを設定
+4. config vars に `GOOGLE_PLACES_API_KEY`、`GOOGLE_MAPS_JS_API_KEY`、`GA_TRACKER_ID`、`SECRET_KEY_BASE`、`RAILS_LOG_TO_STDOUT=enabled`、`RAILS_SERVE_STATIC_FILES=enabled` などを設定
 5. heroku CLI を対象アプリに関連付ける（以降の `heroku` コマンドで `-a <app名>` を毎回指定しなくて済む。デプロイ自体は GitHub 連携経由なのでこの remote 経由で push する必要はない）：
 
    ```
