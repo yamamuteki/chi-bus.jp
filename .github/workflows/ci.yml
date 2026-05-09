@@ -102,7 +102,8 @@ jobs:
           RAILS_DATABASE_PORT: 5432
           RAILS_DATABASE_USER: postgres
           RAILS_DATABASE_PASSWORD: postgres
-          GOOGLE_API_KEY: dummy
+          GOOGLE_PLACES_API_KEY: dummy
+          GOOGLE_MAPS_JS_API_KEY: dummy
         run: bin/rails db:test:prepare test
 
   system-test:
@@ -143,7 +144,8 @@ jobs:
           RAILS_DATABASE_PORT: 5432
           RAILS_DATABASE_USER: postgres
           RAILS_DATABASE_PASSWORD: postgres
-          GOOGLE_API_KEY: dummy
+          GOOGLE_PLACES_API_KEY: dummy
+          GOOGLE_MAPS_JS_API_KEY: dummy
           SELENIUM_REMOTE_URL: http://localhost:4444/wd/hub
         run: bin/rails db:test:prepare test:system
 

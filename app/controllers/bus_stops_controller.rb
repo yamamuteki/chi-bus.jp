@@ -11,7 +11,7 @@ class BusStopsController < ApplicationController
                           .where("keyword ILIKE :p OR name ILIKE :p", p: pattern)
                           .order("name, latitude DESC").limit(100)
       if @bus_stops.empty?
-        client = GooglePlaces::Client.new(ENV["GOOGLE_API_KEY"])
+        client = GooglePlaces::Client.new(ENV["GOOGLE_PLACES_API_KEY"])
         spots = Rails.cache.fetch(params[:q]) do
           # The maximum allowed radius is 50,000 meters in Google Places API Web Service
           # 千葉県庁@35.6049233,140.1208483
