@@ -22,16 +22,24 @@ namespace :bus_stop_number do
   #
   # 戻り値の :stitch / :number_result はすべて picked path のもの。compute_assignments と
   # diagnose の両方で同じ選択結果を扱うために共通化している。
-  def self.pick_best_assignment(bus_route, brbs)
+  # stitch:generate が出力した db/data/stitches.csv.gz から該当 route の stitch を引き、
+  # numberer + LineNameOrienter で採番する。stitches に該当行が無ければ stitcher を live 実行
+  # (= stitch:generate 後に DB へ新規 route が追加されたケース等の救済)。
+  def self.pick_best_assignment(bus_route, brbs, stitches)
     tracks = bus_route.bus_route_tracks.to_a
-    start_a = StartTerminalSelector.call(tracks, line_name: bus_route.line_name, bus_route_bus_stops: brbs)
+    start_a = StartTerminalSelector.call(
+      tracks,
+      line_name: bus_route.line_name,
+      bus_route_bus_stops: brbs,
+      stitch_fn: ->(t, s) { fetch_stitch(stitches, bus_route.id, t, s) }
+    )
 
     if start_a.nil?
-      return run_pipeline(tracks, bus_route, brbs, start: nil, fallback: false)
+      return run_pipeline(tracks, bus_route, brbs, start: nil, fallback: false, stitches: stitches)
     end
 
-    candidate_a = run_pipeline(tracks, bus_route, brbs, start: start_a, fallback: false)
-    candidate_b = run_pipeline(tracks, bus_route, brbs, start: nil, fallback: true)
+    candidate_a = run_pipeline(tracks, bus_route, brbs, start: start_a, fallback: false, stitches: stitches)
+    candidate_b = run_pipeline(tracks, bus_route, brbs, start: nil, fallback: true, stitches: stitches)
 
     inv_a = count_inversions(candidate_a[:flat_coords], brbs, candidate_a[:assignments])
     inv_b = count_inversions(candidate_b[:flat_coords], brbs, candidate_b[:assignments])
@@ -42,9 +50,10 @@ namespace :bus_stop_number do
     inv_a <= inv_b ? candidate_a : candidate_b
   end
 
-  # stitch + numberer + LineNameOrienter を 1 回回し、後続評価のため stitch/number_result も返す。
-  def self.run_pipeline(tracks, bus_route, brbs, start:, fallback:)
-    stitch = TrackStitcher.call_with_diagnostics(tracks, start: start)
+  # numberer + LineNameOrienter を 1 回回し、後続評価のため stitch/number_result も返す。
+  # stitch は stitches store から引く (live 実行は fetch_stitch のフォールバックパス)。
+  def self.run_pipeline(tracks, bus_route, brbs, start:, fallback:, stitches:)
+    stitch = fetch_stitch(stitches, bus_route.id, tracks, start)
     number_result = BusStopNumberer.call_with_diagnostics(
       flat_coords: stitch.flat_coords,
       bus_route_bus_stops: brbs,
@@ -60,7 +69,28 @@ namespace :bus_stop_number do
     }
   end
 
+  # stitches store から該当 (route_id, start) の stitch を引く。
+  # 無ければ stitcher を live 実行して store に追記する (stitch:generate 以降に DB へ新規 route が
+  # 入ったケース等)。store が完全に空なら stitch:generate の実行漏れを示すので明示的に raise する。
+  def self.fetch_stitch(stitches, route_id, tracks, start)
+    key = [ route_id, StitchStore.encode_start(start) ]
+    if (entry = stitches[key])
+      StitchStore.result_from_entry(entry)
+    else
+      result = TrackStitcher.call_with_diagnostics(tracks, start: start)
+      stitches[key] = StitchStore.entry_from_result(result)
+      result
+    end
+  end
+
   def self.compute_assignments
+    stitches = StitchStore.load_existing
+    if stitches.empty?
+      raise "Missing #{StitchStore.path}. Run 'rails stitch:generate' first."
+    end
+    initial_size = stitches.size
+    puts "  stitches loaded: #{initial_size} entries from #{StitchStore.path}"
+
     rows = []
     fallback_count = 0
     ActiveRecord::Base.logger.silence(Logger::WARN) do
@@ -68,11 +98,17 @@ namespace :bus_stop_number do
       # default_scope で隠す対象でも、stops 自体は表示するので採番は必要。
       BusRoute.with_fragmented.find_each do |bus_route|
         brbs = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
-        result = pick_best_assignment(bus_route, brbs)
+        result = pick_best_assignment(bus_route, brbs, stitches)
         rows.concat(result[:assignments])
         fallback_count += 1 if result[:fallback]
       end
     end
+
+    new_entries = stitches.size - initial_size
+    if new_entries > 0
+      puts "  stitches: +#{new_entries} live-stitched entries (route 新規追加? stitch:generate を再実行推奨)"
+    end
+
     rows.sort_by! { |id, _| id }
     puts "  fallback to westmost: #{fallback_count} routes"
     rows
@@ -166,13 +202,19 @@ namespace :bus_stop_number do
     scope = ENV["INCLUDE_FRAGMENTED"] ? BusRoute.with_fragmented : BusRoute.all
     puts "Diagnose target: #{scope.count} routes (#{ENV['INCLUDE_FRAGMENTED'] ? 'INCLUDING' : 'EXCLUDING'} fragmented)"
 
+    stitches = StitchStore.load_existing
+    if stitches.empty?
+      raise "Missing #{StitchStore.path}. Run 'rails stitch:generate' first."
+    end
+    puts "Stitches loaded: #{stitches.size} entries from #{StitchStore.path}"
+
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       scope.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
         # compute_assignments と同じ id 順 brbs を使うことで、LineNameOrienter (内部で `find` を
         # 使うため順序依存) の挙動が両者で揃う。順序が違うと A/B 候補で別の stop が match し、
         # 反転判定が変わり、stored bus_stop_number と diagnose 計測の flat がずれていた。
         brbs_list = bus_route.bus_route_bus_stops.sort_by(&:id)
-        picked = pick_best_assignment(bus_route, brbs_list)
+        picked = pick_best_assignment(bus_route, brbs_list, stitches)
         stitch = picked[:stitch]
         number_result = picked[:number_result]
 
