@@ -16,7 +16,11 @@
 # 距離が大きいバス停は「軌跡データが路線をカバーしていない」サインで、データ欠損を識別できる
 # (例: 神奈川中央交通 津01 で 32 バス停が軌跡から 20km 離れている)。
 class BusStopNumberer
-  Result = Struct.new(:assignments, :distances_m, keyword_init: true)
+  # vertex_indices: pick_best_assignment の count_inversions / diagnose の idx_inversions が使う
+  # 「各 brbs の最近接 vertex の flat_coords 内 index」。numberer 本体の射影ループに乗せて
+  # 1 回の iteration で計算するので、後段の inversion チェックは flat_coords を再走査せずに済む。
+  # bridge segment は (count_inversions と挙動を揃えるため) フィルタしない。
+  Result = Struct.new(:assignments, :distances_m, :vertex_indices, keyword_init: true)
 
   # 緯度 1 度 ≈ 111km の近似で度² から m に変換する係数。
   # (経度方向は緯度依存だが、200m 閾値の判定なら近似で十分。)
@@ -44,7 +48,8 @@ class BusStopNumberer
     if @flat_coords.empty?
       assignments = @brbs.map { |b| [ b.id, nil ] }
       distances = @brbs.to_h { |b| [ b.id, nil ] }
-      return Result.new(assignments: assignments, distances_m: distances)
+      vertex_indices = @brbs.to_h { |b| [ b.id, nil ] }
+      return Result.new(assignments: assignments, distances_m: distances, vertex_indices: vertex_indices)
     end
 
     # flat_coords が 1 点しかない場合は segment が作れない。全 brbs を idx=0 の点との距離で並べる。
@@ -58,11 +63,15 @@ class BusStopNumberer
       sorted = pre.sort_by { |id, pos, dist_sq| [ pos, dist_sq, id ] }
       assignments = sorted.each_with_index.map { |(id, _, _), i| [ id, i + 1 ] }
       distances = pre.to_h { |id, _, dist_sq| [ id, Math.sqrt(dist_sq) * DEG_TO_M ] }
-      return Result.new(assignments: assignments, distances_m: distances)
+      vertex_indices = @brbs.to_h { |b| [ b.id, 0 ] }
+      return Result.new(assignments: assignments, distances_m: distances, vertex_indices: vertex_indices)
     end
 
-    # 各 brbs について、最も近い segment と segment 内位置 t を計算して
-    # curvilinear position (= segment_index + t) を求める。
+    last_idx = @flat_coords.size - 1
+    last_c = @flat_coords[last_idx]
+
+    # 各 brbs について、最も近い segment と segment 内位置 t (採番用) と、
+    # 最も近い vertex の index (inversion チェック用) を 1 ループで計算する。
     pre = @brbs.map do |brbs|
       bs = brbs.bus_stop
       lat = bs.latitude
@@ -72,7 +81,18 @@ class BusStopNumberer
       best_t = 0.0
       best_dist_sq = Float::INFINITY
 
+      # vertex 距離は count_inversions の挙動と揃えるため bridge segment フィルタを適用しない。
+      best_vertex_idx = 0
+      best_vertex_dist_sq = Float::INFINITY
+
       @flat_coords.each_cons(2).with_index do |(p, q), i|
+        # vertex 距離 (segment 始点 p のみここで見る。終点 q はループ外で last_idx を 1 回確認)。
+        dvp = (lat - p[0]) ** 2 + (lng - p[1]) ** 2
+        if dvp < best_vertex_dist_sq
+          best_vertex_dist_sq = dvp
+          best_vertex_idx = i
+        end
+
         next if @bridge_segments.include?(i)
         dx = q[0] - p[0]
         dy = q[1] - p[1]
@@ -100,13 +120,20 @@ class BusStopNumberer
         end
       end
 
-      [ brbs.id, best_segment + best_t, best_dist_sq ]
+      # 最終 vertex (= flat_coords[last_idx]) はループ内では p として現れないので、ここで 1 回確認。
+      d_last = (lat - last_c[0]) ** 2 + (lng - last_c[1]) ** 2
+      if d_last < best_vertex_dist_sq
+        best_vertex_idx = last_idx
+      end
+
+      [ brbs.id, best_segment + best_t, best_dist_sq, best_vertex_idx ]
     end
 
     # curvilinear position 昇順 → 同位置は距離順 → 同距離は id 順で安定化。
-    sorted = pre.sort_by { |id, pos, dist_sq| [ pos, dist_sq, id ] }
-    assignments = sorted.each_with_index.map { |(id, _, _), i| [ id, i + 1 ] }
-    distances = pre.to_h { |id, _, dist_sq| [ id, Math.sqrt(dist_sq) * DEG_TO_M ] }
-    Result.new(assignments: assignments, distances_m: distances)
+    sorted = pre.sort_by { |id, pos, dist_sq, _vidx| [ pos, dist_sq, id ] }
+    assignments = sorted.each_with_index.map { |(id, _, _, _), i| [ id, i + 1 ] }
+    distances = pre.to_h { |id, _, dist_sq, _vidx| [ id, Math.sqrt(dist_sq) * DEG_TO_M ] }
+    vertex_indices = pre.to_h { |id, _, _, vidx| [ id, vidx ] }
+    Result.new(assignments: assignments, distances_m: distances, vertex_indices: vertex_indices)
   end
 end

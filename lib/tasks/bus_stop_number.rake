@@ -41,8 +41,10 @@ namespace :bus_stop_number do
     candidate_a = run_pipeline(tracks, bus_route, brbs, start: start_a, fallback: false, stitches: stitches)
     candidate_b = run_pipeline(tracks, bus_route, brbs, start: nil, fallback: true, stitches: stitches)
 
-    inv_a = count_inversions(candidate_a[:flat_coords], brbs, candidate_a[:assignments])
-    inv_b = count_inversions(candidate_b[:flat_coords], brbs, candidate_b[:assignments])
+    # vertex_indices は numberer が射影ループ内で計算済み (BusStopNumberer::Result.vertex_indices)。
+    # flat_coords を再走査しないので 1 route あたり O(brbs × coords) を 2 回節約できる。
+    inv_a = count_inversions(candidate_a[:number_result].vertex_indices, brbs, candidate_a[:assignments])
+    inv_b = count_inversions(candidate_b[:number_result].vertex_indices, brbs, candidate_b[:assignments])
 
     # A 優位 or 同点なら A (selector のメリットを残す)。B が明確に良ければ fallback。
     # 過去観察: selector は bridge 距離合計を最小化するが、それが順序最良と一致しないケースが
@@ -116,11 +118,14 @@ namespace :bus_stop_number do
     rows
   end
 
-  # bus_stop_number 順に並べたバス停の「flat_coords 上での最近接 idx」が単調か。
+  # bus_stop_number 順に並べたバス停の「flat_coords 上での最近接 vertex idx」が単調か。
   # 5 idx 以上戻ったら inversion とカウントする (SimplifyRb の小ぶれを許容)。
-  # diagnose タスクの idx_inversions と同じ計算。
-  def self.count_inversions(flat_coords, brbs, assignments)
-    return 0 if flat_coords.empty?
+  # diagnose タスクの idx_inversions と同じ計算 (こちらは A/B 比較で 2 回呼ばれる)。
+  #
+  # vertex_indices は BusStopNumberer::Result.vertex_indices (= 各 brbs の最近接 vertex の
+  # flat_coords 内 index)。numberer の射影ループに乗せて計算済みなので、ここでは flat_coords
+  # を再走査しない。
+  def self.count_inversions(vertex_indices, brbs, assignments)
     num_by_id = assignments.to_h
     ordered = brbs.map { |b| [ b, num_by_id[b.id] ] }
                   .select { |_, n| n }
@@ -128,16 +133,8 @@ namespace :bus_stop_number do
     inversions = 0
     prev_idx = -1
     ordered.each do |b, _|
-      bs = b.bus_stop
-      min_idx = 0
-      min_dist_sq = Float::INFINITY
-      flat_coords.each_with_index do |c, idx|
-        d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
-        if d < min_dist_sq
-          min_dist_sq = d
-          min_idx = idx
-        end
-      end
+      min_idx = vertex_indices[b.id]
+      next if min_idx.nil?
       inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
       prev_idx = min_idx
     end
@@ -255,24 +252,16 @@ namespace :bus_stop_number do
         # 後ろのバス停を先に並べた」という直接的なバグ。tolerance=5 で SimplifyRb 起因の小ぶれを許容。
         # 注意: 循環路線では「同じ場所を 2 回通る」ため raw closest_idx が周回終端で巻き戻る。
         # これは採番バグではないが指標上はカウントされてしまう (= 偽陽性)。
+        #
+        # vertex_indices は number_result が射影ループ内で計算済みなので flat_coords を再走査しない。
         idx_inversions = 0
-        flat = stitch.flat_coords
-        if !flat.empty?
-          prev_idx = -1
-          ordered.each do |b|
-            bs = b.bus_stop
-            min_idx = 0
-            min_dist_sq = Float::INFINITY
-            flat.each_with_index do |c, idx|
-              d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
-              if d < min_dist_sq
-                min_dist_sq = d
-                min_idx = idx
-              end
-            end
-            idx_inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
-            prev_idx = min_idx
-          end
+        vertex_indices = number_result.vertex_indices
+        prev_idx = -1
+        ordered.each do |b|
+          min_idx = vertex_indices[b.id]
+          next if min_idx.nil?
+          idx_inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
+          prev_idx = min_idx
         end
 
         # 採番品質の指標 (3): 連続するバス停間の物理距離 (m) に基づく outlier 検出。
