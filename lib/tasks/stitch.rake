@@ -20,8 +20,10 @@ namespace :stitch do
       stitch_one(tracks, start)
     }
 
+    scope = PrefectureFilter.apply(BusRoute.with_fragmented)
+
     ActiveRecord::Base.logger.silence(Logger::WARN) do
-      BusRoute.with_fragmented.find_each do |bus_route|
+      scope.find_each do |bus_route|
         tracks = bus_route.bus_route_tracks.to_a
         # selector の駅 hint や line_name hint で起点候補 A を決める。
         # multi_try_min_bridge にハマったときも内部で stitch を使うので、その分も map に乗せる。
@@ -60,12 +62,17 @@ namespace :stitch do
     TrackStitcher.call_with_diagnostics(tracks, start: start)
   end
 
-  desc "Stitch all routes' bus_route_tracks into db/data/stitches.csv.gz (does not touch DB)"
+  desc "Stitch all routes' bus_route_tracks into db/data/stitches.csv.gz (does not touch DB). Set PREFECTURE=東京都 to filter (skips CSV write)"
   task generate: :environment do
     $stdout.sync = true
     map = compute_stitches
-    path = StitchStore.write(map)
-    puts "Wrote #{path} (#{map.size} entries)"
+    if PrefectureFilter.active?
+      # 部分実行で全体 CSV を上書きすると残り県分の entries が消える。read-only モードで終了。
+      puts "PREFECTURE filter active: skipping CSV write (#{map.size} entries computed in-memory only)"
+    else
+      path = StitchStore.write(map)
+      puts "Wrote #{path} (#{map.size} entries)"
+    end
   end
 
   desc "Profile stitch:generate via stackprof (writes tmp/stitch_generate.stackprof)"

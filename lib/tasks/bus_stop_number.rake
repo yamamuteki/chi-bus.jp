@@ -91,12 +91,14 @@ namespace :bus_stop_number do
     initial_size = stitches.size
     puts "  stitches loaded: #{initial_size} entries from #{StitchStore.path}"
 
+    scope = PrefectureFilter.apply(BusRoute.with_fragmented)
+
     rows = []
     fallback_count = 0
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       # fragmented route の bus_stop も number を埋める (直接 URL アクセスで表示する用)。
       # default_scope で隠す対象でも、stops 自体は表示するので採番は必要。
-      BusRoute.with_fragmented.find_each do |bus_route|
+      scope.find_each do |bus_route|
         brbs = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
         result = pick_best_assignment(bus_route, brbs, stitches)
         rows.concat(result[:assignments])
@@ -152,22 +154,27 @@ namespace :bus_stop_number do
     2.0 * 6_371_000.0 * Math.asin(Math.sqrt(a))
   }
 
-  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB)"
+  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB). Set PREFECTURE=東京都 to filter (skips CSV write)"
   task generate: :environment do
     require "csv"
     require "zlib"
     $stdout.sync = true
     csv_path = "db/data/bus_stop_numbers.csv.gz"
 
-    # 1. 路線の bus_route_tracks を TrackStitcher で 1 本の座標列に繋ぎ合わせる。
-    # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当てる。
+    # 1. db/data/stitches.csv.gz から stitch 結果を読み込む (stitch:generate 出力)。
+    # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当て、A/B 候補から best を選ぶ。
     rows = compute_assignments
 
-    Zlib::GzipWriter.open(csv_path) do |gz|
-      csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
-      rows.each { |row| csv << row }
+    if PrefectureFilter.active?
+      # 部分実行で全体 CSV を上書きすると残り県分の rows が消える。read-only モードで終了。
+      puts "PREFECTURE filter active: skipping CSV write (#{rows.size} rows computed in-memory only)"
+    else
+      Zlib::GzipWriter.open(csv_path) do |gz|
+        csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
+        rows.each { |row| csv << row }
+      end
+      puts "Wrote #{csv_path} (#{rows.size} rows)"
     end
-    puts "Wrote #{csv_path} (#{rows.size} rows)"
   end
 
   desc "Profile bus_stop_number:generate via stackprof (writes tmp/bus_stop_number_generate.stackprof)"
@@ -200,6 +207,7 @@ namespace :bus_stop_number do
     # 改善対象外。BusRoute の default_scope で除外され、ノイズ除去された状態で計測される。
     # 全路線含めて見たい場合は INCLUDE_FRAGMENTED=1 を渡す。
     scope = ENV["INCLUDE_FRAGMENTED"] ? BusRoute.with_fragmented : BusRoute.all
+    scope = PrefectureFilter.apply(scope)
     puts "Diagnose target: #{scope.count} routes (#{ENV['INCLUDE_FRAGMENTED'] ? 'INCLUDING' : 'EXCLUDING'} fragmented)"
 
     stitches = StitchStore.load_existing
