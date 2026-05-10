@@ -10,6 +10,35 @@
 # 通常のセットアップでは generate は呼ばず、load のみで CSV を反映する。
 # generate は再生成すると順序が変わりうる（CLAUDE.md 参照）。
 namespace :bus_stop_number do
+  # AR (BusStop.latitude 等) は LazyAttributeSet#fetch_value 経由で旧プロファイル上 21% 占めて
+  # いた。numberer / orienter / selector / diagnose は brbs.id / brbs.bus_stop_number /
+  # brbs.bus_stop.{latitude,longitude,name} しか触らないので、AR の代わりに plain Struct で
+  # wrap して JOIN 1 本の pluck で必要列だけロードする。
+  PluckedBrbs = Struct.new(:id, :bus_stop_number, :bus_stop, keyword_init: true)
+  PluckedBusStop = Struct.new(:latitude, :longitude, :name, keyword_init: true)
+
+  # 1 路線分の brbs を bus_stops JOIN ＋ pluck で軽量にロードする。
+  # AR インスタンス化を避け、attribute 読み出しを Struct 化することで hot loop の overhead を削減。
+  def self.load_brbs(bus_route)
+    bus_route.bus_route_bus_stops
+             .joins(:bus_stop)
+             .reorder("bus_route_bus_stops.id")
+             .pluck(
+               "bus_route_bus_stops.id",
+               "bus_route_bus_stops.bus_stop_number",
+               "bus_stops.latitude",
+               "bus_stops.longitude",
+               "bus_stops.name"
+             )
+             .map { |id, num, lat, lng, name|
+               PluckedBrbs.new(
+                 id: id,
+                 bus_stop_number: num,
+                 bus_stop: PluckedBusStop.new(latitude: lat, longitude: lng, name: name)
+               )
+             }
+  end
+
   # generate / profile から共通に呼ぶ計算本体。CSV に書き出す行配列を返す。
   #
   # 6000+ 路線 × N クエリの構成のため、開発環境の SQL クエリログ生成
@@ -101,7 +130,7 @@ namespace :bus_stop_number do
       # fragmented route の bus_stop も number を埋める (直接 URL アクセスで表示する用)。
       # default_scope で隠す対象でも、stops 自体は表示するので採番は必要。
       scope.find_each do |bus_route|
-        brbs = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
+        brbs = load_brbs(bus_route)
         result = pick_best_assignment(bus_route, brbs, stitches)
         rows.concat(result[:assignments])
         fallback_count += 1 if result[:fallback]
@@ -214,11 +243,13 @@ namespace :bus_stop_number do
     puts "Stitches loaded: #{stitches.size} entries from #{StitchStore.path}"
 
     ActiveRecord::Base.logger.silence(Logger::WARN) do
-      scope.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
+      # bus_route_bus_stops / bus_stops は load_brbs (joins + pluck) でまとめて取るので
+      # eager-load の対象から外す。tracks のみ preload する。
+      scope.includes(:bus_route_tracks).find_each do |bus_route|
         # compute_assignments と同じ id 順 brbs を使うことで、LineNameOrienter (内部で `find` を
         # 使うため順序依存) の挙動が両者で揃う。順序が違うと A/B 候補で別の stop が match し、
         # 反転判定が変わり、stored bus_stop_number と diagnose 計測の flat がずれていた。
-        brbs_list = bus_route.bus_route_bus_stops.sort_by(&:id)
+        brbs_list = load_brbs(bus_route)
         picked = pick_best_assignment(bus_route, brbs_list, stitches)
         stitch = picked[:stitch]
         number_result = picked[:number_result]
@@ -234,9 +265,10 @@ namespace :bus_stop_number do
 
         # 採番品質の指標 (1): バス停物理座標の進行方向反転を数える。街路の鋭角ターンも拾うため
         # ノイズが多いが、極端に大きい値は採番崩れのサイン。
-        ordered = bus_route.bus_route_bus_stops
-                            .select { |b| b.bus_stop_number }
-                            .sort_by(&:bus_stop_number)
+        # ordered は plucked brbs_list を流用 (bus_stop_number は plucked 列に同梱済み)。
+        ordered = brbs_list
+                    .select { |b| b.bus_stop_number }
+                    .sort_by(&:bus_stop_number)
         backward_turns = 0
         ordered.each_cons(3) do |a, b, c|
           ab_lat = b.bus_stop.latitude - a.bus_stop.latitude
