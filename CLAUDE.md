@@ -164,7 +164,7 @@ XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮し�
 
 - Google Places API キー — `ENV["GOOGLE_PLACES_API_KEY"]`。検索ヒット 0 件時のフォールバックでのみ使う。Geocoding は ISJ オフラインデータ (`lib/isj_reverse_geocoder.rb`) に移行したため Google Geocoding API は使っておらず、`config/initializers/geocoder.rb` も api_key 未設定。
 - Google Maps JavaScript API キー — `ENV["GOOGLE_MAPS_JS_API_KEY"]` (`app/views/layouts/application.html.erb`)。HTML に埋め込まれるためリファラ制限前提。Places 用と分けてあるのは公開面 (Maps) と非公開面 (Places) で Google Cloud 側の制限ポリシーが違うため。ENV 名を `MAPS_JS` まで詳細にしているのは Google Maps Platform にサーバーサイド製品 (Geocoding / Directions / Distance Matrix / Maps Static など) も多数あり、将来追加した時に用途が一目で分かるようにするため。
-- Google Analytics トラッカー ID — `ENV["GA_TRACKER_ID"]` (`config/environments/production.rb`)。未設定なら `valid_tracker?` ガードで `analytics_init` がスキップされるので production 以外では何もしない。
+- Google Analytics 4 Measurement ID — `ENV["GA_TRACKER_ID"]` (`app/views/layouts/application.html.erb`)。GA4 公式の `gtag.js` スニペットを直書きしている。`Rails.env.production?` かつ ENV が present のときだけタグを出力するので dev / test では何も出ない。`google-analytics-rails` gem は GA4 (gtag.js) 非対応なので撤去済み。
 - New Relic（`newrelic_rpm`）は production で有効。
 - `dotenv-rails` で `.env` を読み込み（`.env` は gitignore 済み）。
 - CI test job では `GOOGLE_PLACES_API_KEY: dummy` を渡してモック前提のテストを通している。
