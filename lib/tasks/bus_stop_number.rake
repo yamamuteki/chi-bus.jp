@@ -180,7 +180,7 @@ namespace :bus_stop_number do
     2.0 * 6_371_000.0 * Math.asin(Math.sqrt(a))
   }
 
-  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB). Set PREFECTURE=東京都 to filter (skips CSV write)"
+  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB). PREFECTURE=東京都 で 1 県だけ再計算し既存 CSV にマージ (CSV は常に 47 都道府県分完全、DB 反映には bus_stop_number:load を続けて呼ぶ)"
   task generate: :environment do
     require "csv"
     require "zlib"
@@ -192,8 +192,16 @@ namespace :bus_stop_number do
     rows = compute_assignments
 
     if PrefectureFilter.active?
-      # 部分実行で全体 CSV を上書きすると残り県分の rows が消える。read-only モードで終了。
-      puts "PREFECTURE filter active: skipping CSV write (#{rows.size} rows computed in-memory only)"
+      # 既存 CSV を load → 該当県の brbs を更新 (= 他 46 県の rows はそのまま) → 書き戻し。
+      # これで CSV は常に 47 都道府県分完全。DB 反映は bus_stop_number:load を続けて呼ぶ。
+      existing = load_existing_assignments(csv_path)
+      rows.each { |id, num| existing[id] = num }
+      sorted = existing.sort.to_a
+      Zlib::GzipWriter.open(csv_path) do |gz|
+        csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
+        sorted.each { |row| csv << row }
+      end
+      puts "PREFECTURE filter: merged #{rows.size} rows into #{csv_path} (total #{sorted.size}). Run 'bus_stop_number:load' to apply to DB."
     else
       Zlib::GzipWriter.open(csv_path) do |gz|
         csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
@@ -201,6 +209,20 @@ namespace :bus_stop_number do
       end
       puts "Wrote #{csv_path} (#{rows.size} rows)"
     end
+  end
+
+  # 既存 bus_stop_numbers.csv.gz を Hash{brbs_id => bus_stop_number} で読み込む。
+  # PREFECTURE filter で部分更新する際に「他 46 県分」を保持するために使う。
+  def self.load_existing_assignments(csv_path)
+    return {} unless File.exist?(csv_path)
+    map = {}
+    Zlib::GzipReader.open(csv_path) do |f|
+      CSV.new(f, headers: true).each do |row|
+        num = row["bus_stop_number"]
+        map[row["bus_route_bus_stop_id"].to_i] = num.nil? || num.empty? ? nil : num.to_i
+      end
+    end
+    map
   end
 
   desc "Profile bus_stop_number:generate via stackprof (writes tmp/bus_stop_number_generate.stackprof)"

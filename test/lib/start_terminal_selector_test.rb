@@ -103,7 +103,8 @@ class StartTerminalSelectorTest < Minitest::Test
 
   def test_station_hint_picks_closest_terminal_when_both_have_station
     # 両端 terminal がともに駅近 (200m 以内) の場合、駅停留所との距離がより小さい terminal を
-    # 採用する (大都市圏を想定: より「駅前らしい」方を選ぶ)。
+    # 採用する (大都市圏を想定: より「駅前らしい」方を選ぶ)。STATION_DISTANCE_BUCKET_M=50m で
+    # 18m と 91m はバケットが分かれるので「東駅 (より近い)」が勝つ。
     a = t(1, [ [ 35.0, 140.0 ], [ 35.0, 140.1 ] ])
     b = t(2, [ [ 35.0, 140.1 ], [ 35.0, 140.2 ] ])
     c = t(3, [ [ 35.0, 140.2 ], [ 35.0, 140.3 ] ])
@@ -113,6 +114,29 @@ class StartTerminalSelectorTest < Minitest::Test
     ]
     result = StartTerminalSelector.call([ a, b, c ], line_name: "温根別線", bus_route_bus_stops: stops)
     assert_equal [ 35.0, 140.3 ], result
+  end
+
+  def test_station_hint_picks_edge_most_terminal_when_distances_tied
+    # 中間にも端にも駅 terminal があって、両者とも station 距離 0m (= 同 50m バケット) の場合、
+    # 全 terminal の重心から最も遠い terminal (= 路線の geographic 端) を採用する。
+    # 都01 (新橋↔渋谷) のような「中間駅 (六本木) と終端駅 (新橋) が両方 0m 一致」する case で、
+    # 中間駅起点を選ぶ旧挙動 (iteration 順 tie-break) を避けて edge 起点に倒す目的。
+    #
+    # 構造: J を junction とし、3 本の track が J から W / S1 / S2 に伸びる。
+    # 端の駅 (S2) は重心から離れているので edge と判断され、中間駅 (S1) より優先される。
+    j  = [ 35.0, 140.4 ]
+    w  = [ 35.0, 140.0 ]
+    s1 = [ 35.0, 140.5 ]  # 中間の駅 (重心 [35.0, 140.5] に一致)
+    s2 = [ 35.0, 141.0 ]  # 端の駅 (重心から 0.5 度 ≒ 50km 離れている)
+    a = t(1, [ j, w  ])
+    b = t(2, [ j, s1 ])
+    c = t(3, [ j, s2 ])
+    stops = [
+      brbs(1, "中間駅", s1[0], s1[1]),
+      brbs(2, "端の駅", s2[0], s2[1])
+    ]
+    result = StartTerminalSelector.call([ a, b, c ], line_name: "温根別線", bus_route_bus_stops: stops)
+    assert_equal s2, result
   end
 
   def test_line_name_hint_takes_priority_over_station_hint

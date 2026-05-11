@@ -62,16 +62,22 @@ namespace :stitch do
     TrackStitcher.call_with_diagnostics(tracks, start: start)
   end
 
-  desc "Stitch all routes' bus_route_tracks into db/data/stitches.csv.gz (does not touch DB). Set PREFECTURE=東京都 to filter (skips CSV write)"
+  desc "Stitch all routes' bus_route_tracks into db/data/stitches.csv.gz (does not touch DB). PREFECTURE=東京都 で 1 県だけ再計算し既存 CSV にマージ (CSV は常に 47 都道府県分完全)"
   task generate: :environment do
     $stdout.sync = true
-    map = compute_stitches
+    new_map = compute_stitches
     if PrefectureFilter.active?
-      # 部分実行で全体 CSV を上書きすると残り県分の entries が消える。read-only モードで終了。
-      puts "PREFECTURE filter active: skipping CSV write (#{map.size} entries computed in-memory only)"
+      # 既存 CSV を load → 該当県の route_ids の entries を一旦削除 (旧 start_repr の orphan を残さない)
+      # → 新 entries をマージ → 書き戻し。これで CSV は常に 47 都道府県分完全な状態を保つ。
+      tokyo_route_ids = new_map.keys.map(&:first).to_set
+      existing_map = StitchStore.load_existing
+      existing_map.delete_if { |(rid, _), _| tokyo_route_ids.include?(rid) }
+      merged = existing_map.merge(new_map)
+      path = StitchStore.write(merged)
+      puts "PREFECTURE filter: replaced stitches for #{tokyo_route_ids.size} routes (#{new_map.size} entries) -> #{path} (total #{merged.size})"
     else
-      path = StitchStore.write(map)
-      puts "Wrote #{path} (#{map.size} entries)"
+      path = StitchStore.write(new_map)
+      puts "Wrote #{path} (#{new_map.size} entries)"
     end
   end
 
