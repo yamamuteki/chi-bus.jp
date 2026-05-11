@@ -157,6 +157,39 @@
           window.location.href = "/bus_routes/" + polyline.id;
         });
       });
+
+      // マーカー hover 用の即時 tooltip。Google Maps の Marker は `title` 属性を経由した
+      // ネイティブブラウザ tooltip を出すが、500ms 級の遅延があって体感が遅い。
+      // 共有 InfoWindow に title 文字列だけ流し込んで mouseover で即開く。
+      // ネイティブ tooltip は二重表示防止のために setTitle("") で外す。
+      const hoverInfoWindow = new google.maps.InfoWindow({
+        disableAutoPan: true,
+        headerDisabled: true
+      });
+      (getMapMeta().markers || []).forEach(function(marker) {
+        const serviceObject = marker.getServiceObject();
+        const title = serviceObject.getTitle();
+        if (!title) return;
+        serviceObject.setTitle("");
+        // gmaps4rails が marker 生成時に登録した click→InfoWindow ハンドラを外す。
+        // クリック時は吹き出しを出さず、直接 marker.path へ遷移させたいため。
+        google.maps.event.clearListeners(serviceObject, "click");
+        google.maps.event.addListener(serviceObject, "mouseover", function() {
+          hoverInfoWindow.setContent(title);
+          hoverInfoWindow.open({ map: serviceObject.getMap(), anchor: serviceObject });
+        });
+        google.maps.event.addListener(serviceObject, "mouseout", function() {
+          hoverInfoWindow.close();
+        });
+        // 通常のバス停 → /bus_stops/:id、Google Places の Place →
+        // /bus_stops?position=lat,lng (周辺検索) に飛ぶ。
+        // path は build_markers が bus_stop_or_place_path で生成して json に含めている。
+        google.maps.event.addListener(serviceObject, "click", function() {
+          if (!marker.path) return;
+          hoverInfoWindow.close();
+          window.location.href = marker.path;
+        });
+      });
     });
   });
 })();

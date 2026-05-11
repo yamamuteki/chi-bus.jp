@@ -11,9 +11,11 @@ module ApplicationHelper
     markers += Gmaps4rails.build_markers(bus_stops) do |bus_stop, marker|
       marker.lat bus_stop.latitude
       marker.lng bus_stop.longitude
-      marker.title bus_stop.name
-      marker.infowindow render partial: "application/infowindow", locals: { bus_stop: bus_stop }
-      marker.json({ id: bus_stop.id })
+      # title はホバー時の即時 tooltip 文言。「渋谷駅（10）」のように停留所名 + 通過路線数 (Place は「周辺」)。
+      marker.title "#{bus_stop.name}（#{bus_stop_badge(bus_stop)}）"
+      # path はマーカークリック時のジャンプ先。BusStop なら詳細ページ、Google Places の
+      # Place なら同座標の周辺検索 (= /bus_stops?position=lat,lng) になる。
+      marker.json({ id: bus_stop.id, path: bus_stop_or_place_path(bus_stop) })
     end
     markers
   end
