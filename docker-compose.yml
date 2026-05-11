@@ -31,6 +31,9 @@ services:
   db:
     image: postgres:17
     platform: linux/arm64
+    # bus_stop_number:generate の並列実行で、5 worker が同時に大きな pluck クエリを
+    # 投げる際 PG の shared memory (default 64MB) が不足する。256MB に拡張する。
+    shm_size: 256m
     ports:
       - "5432:5432"
     environment:
