@@ -34,6 +34,12 @@ class StartTerminalSelector
   # する (例 500m) と「駅と無関係なバス停が偶然 "駅" を含む地名」を誤って拾うリスクが上がる。
   STATION_HINT_RADIUS_M = 200.0
 
+  # 駅停留所までの距離をバケット化する単位 (m)。同じバケットに入る複数 terminal は「ほぼ同距離」
+  # と見なし、edge-most tie-break (terminal centroid から最遠) で 1 つに絞る。
+  # 例: 都01 (新橋↔渋谷) は途中の 六本木駅 と終点 新橋駅 が両方 0m 一致するが、両者を同
+  # バケットとして centroid 比較で edge にある 新橋駅 を選ぶ。
+  STATION_DISTANCE_BUCKET_M = 50.0
+
   # @param stitch_fn [Proc, nil] 内部の multi_try_min_bridge から呼ぶ stitcher。
   #   `->(tracks, start) { TrackStitcher::Result }` を渡すと TrackStitcher 直接呼び出しを
   #   差し替えできる。stitch:generate / bus_stop_number:generate は store からの read を
@@ -97,25 +103,32 @@ class StartTerminalSelector
   end
 
   # 「駅」を名前に含む bus_stop が STATION_HINT_RADIUS_M 以内にある terminal を優先する。
-  # 複数の terminal が条件を満たす場合は、駅停留所との距離が最小のものを採用 (大都市圏で
-  # 両端 terminal が駅近のときは「より駅前らしい方」が選ばれる)。
+  # 複数の terminal が条件を満たす場合は (a) 駅停留所への最近接距離が小さい terminal を優先、
+  # (b) STATION_DISTANCE_BUCKET_M 単位で見て同距離なら全 terminal centroid から最も遠い
+  # terminal (= 路線の「端」) を優先する。
+  #
+  # (a) は「より駅前らしい terminal を選ぶ」発想 (例: 18m 駅近 > 91m 駅近)。
+  # (b) は両端が完全に駅前の都市部路線 (例: 都01 は途中の 六本木駅 と終点 新橋駅 が両方 0m
+  # 一致するが、前者は中間駅、後者は geographic 終端) で意味のある起点を選ぶための tie-break。
   def station_hint
     station_stops = @brbs.select { |b| b.bus_stop.name.include?("駅") }
     return nil if station_stops.empty?
 
-    best_terminal = nil
-    best_dist = Float::INFINITY
-    @terminals.each do |coord|
-      station_stops.each do |b|
-        d = haversine(coord[0], coord[1], b.bus_stop.latitude, b.bus_stop.longitude)
-        if d < best_dist
-          best_dist = d
-          best_terminal = coord
-        end
-      end
+    candidates = @terminals.filter_map do |coord|
+      min_dist = station_stops.map { |b|
+        haversine(coord[0], coord[1], b.bus_stop.latitude, b.bus_stop.longitude)
+      }.min
+      [ coord, min_dist ] if min_dist <= STATION_HINT_RADIUS_M
     end
+    return nil if candidates.empty?
 
-    best_dist <= STATION_HINT_RADIUS_M ? best_terminal : nil
+    centroid_lat = @terminals.sum { |t| t[0] } / @terminals.size
+    centroid_lng = @terminals.sum { |t| t[1] } / @terminals.size
+    candidates.min_by { |coord, dist|
+      bucket = (dist / STATION_DISTANCE_BUCKET_M).floor
+      centroid_dist_sq = (coord[0] - centroid_lat) ** 2 + (coord[1] - centroid_lng) ** 2
+      [ bucket, -centroid_dist_sq ]
+    }.first
   end
 
   # 各 terminal を起点に stitcher を回し、bridge segment の距離合計が最小の起点を返す。
