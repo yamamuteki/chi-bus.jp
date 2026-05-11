@@ -75,7 +75,12 @@ namespace :stitch do
     selector_used = 0
     fallback_only = 0
 
-    ActiveRecord::Base.logger.silence(Logger::WARN) do
+    # silence(Logger::WARN) では caller_locations / BacktraceCleaner の build が残るので、
+    # logger を nil に置き換えて SQL ログ生成を完全 skip する (per-route の AR query が重い
+    # ループで効く)。
+    saved_logger = ActiveRecord::Base.logger
+    ActiveRecord::Base.logger = nil
+    begin
       BusRoute.with_fragmented
               .where(id: bus_route_ids)
               .includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop)
@@ -106,6 +111,8 @@ namespace :stitch do
           fallback_only += 1
         end
       end
+    ensure
+      ActiveRecord::Base.logger = saved_logger
     end
 
     { map: map, selector_used: selector_used, fallback_only: fallback_only }

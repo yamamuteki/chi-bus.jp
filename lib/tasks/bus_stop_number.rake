@@ -39,6 +39,31 @@ namespace :bus_stop_number do
              }
   end
 
+  # 複数 route 分の brbs を 1 query でまとめて取り、route_id → brbs 配列の Hash を返す。
+  # per-route の load_brbs を呼ぶ N+1 を回避する。chunk あたり 1 query で大幅高速化。
+  def self.load_brbs_by_route(bus_route_ids)
+    by_route = Hash.new { |h, k| h[k] = [] }
+    BusRouteBusStop
+      .joins(:bus_stop)
+      .where(bus_route_id: bus_route_ids)
+      .reorder("bus_route_bus_stops.bus_route_id", "bus_route_bus_stops.id")
+      .pluck(
+        "bus_route_bus_stops.bus_route_id",
+        "bus_route_bus_stops.id",
+        "bus_route_bus_stops.bus_stop_number",
+        "bus_stops.latitude",
+        "bus_stops.longitude",
+        "bus_stops.name"
+      ).each do |route_id, id, num, lat, lng, name|
+      by_route[route_id] << PluckedBrbs.new(
+        id: id,
+        bus_stop_number: num,
+        bus_stop: PluckedBusStop.new(latitude: lat, longitude: lng, name: name)
+      )
+    end
+    by_route
+  end
+
   # generate / profile から共通に呼ぶ計算本体。CSV に書き出す行配列を返す。
   #
   # 6000+ 路線 × N クエリの構成のため、開発環境の SQL クエリログ生成
@@ -151,8 +176,10 @@ namespace :bus_stop_number do
           # 子プロセスは親から継承した PG socket を共有してしまい、デッドロックの原因になる。
           # disconnect! で stale connection を切り、次のクエリで新規確立させる。
           ActiveRecord::Base.connection_handler.connection_pools.each(&:disconnect!)
-          local_stitches = StitchStore.load_existing
-          partial = compute_assignments_for(ids_chunk, local_stitches, with_diagnostics: with_diagnostics)
+          # stitches は parent で load 済み → fork の copy-on-write で memory 共有 (再 load 不要)。
+          # child で fetch_stitch が新 entry を追加する場合は、その page だけ child memory にコピー
+          # される (= CoW)。それ以外は parent と共有のままで、I/O コスト 0。
+          partial = compute_assignments_for(ids_chunk, stitches, with_diagnostics: with_diagnostics)
           File.binwrite(File.join(tmp_dir, "#{idx}.dump"), Marshal.dump(partial))
           # exit! で at_exit hook / AR の after_fork hook 等のクリーンアップを skip し
           # 確実に終了させる (= 通常の exit だと親と共有する socket の close で hang する)。
@@ -196,9 +223,20 @@ namespace :bus_stop_number do
     diag_rows = []
     fallback_count = 0
 
-    ActiveRecord::Base.logger.silence(Logger::WARN) do
-      BusRoute.with_fragmented.where(id: bus_route_ids).find_each do |bus_route|
-        brbs = load_brbs(bus_route)
+    # silence(Logger::WARN) では caller_locations / BacktraceCleaner の build が残るので、
+    # logger を nil に置き換えて SQL ログ生成を完全 skip する (per-route の AR query が重い
+    # ループで効く)。
+    saved_logger = ActiveRecord::Base.logger
+    ActiveRecord::Base.logger = nil
+    begin
+      # per-route の load_brbs を呼ぶ N+1 を、chunk 全体 1 query の load_brbs_by_route で置き換え。
+      # bus_route_tracks も includes で eager load し、per-route の追加 query を回避する。
+      brbs_by_route = load_brbs_by_route(bus_route_ids)
+      BusRoute.with_fragmented
+              .where(id: bus_route_ids)
+              .includes(:bus_route_tracks)
+              .find_each do |bus_route|
+        brbs = brbs_by_route[bus_route.id]
         result = pick_best_assignment(bus_route, brbs, stitches)
         rows.concat(result[:assignments])
         fallback_count += 1 if result[:fallback]
@@ -211,6 +249,8 @@ namespace :bus_stop_number do
           diag_rows << build_diagnose_row(bus_route, brbs, result[:stitch], result[:number_result])
         end
       end
+    ensure
+      ActiveRecord::Base.logger = saved_logger
     end
 
     { rows: rows, diag_rows: diag_rows, fallback_count: fallback_count,
