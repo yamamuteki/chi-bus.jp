@@ -58,9 +58,6 @@ class DataGenerator
     @track_id_by_gml = {}
     @route_id_by_key = {}
     @track_coords_by_id = {}
-    # 座標ハッシュ → track_id。県境を跨ぐ Curve は両県の N07 ファイルに
-    # 同一座標で重複登録されているため、ここで dedup する。
-    @track_id_by_coord_hash = {}
   end
 
   # エントリポイント。XML パース → CSV 書き出しの順に実行。
@@ -91,24 +88,19 @@ class DataGenerator
   # ・座標列は SimplifyRb で間引いて軽量化（許容誤差 0.0001 度 ≒ 約 11m）
   # ・JSON は手書きで生成。json gem の Float#to_json は 17 桁出してしまうため、
   #   Float#to_s（最短ラウンドトリップ表現）を使ってサイズを抑える。
+  #
+  # 旧実装は coord_hash で重複 Curve を 1 track に集約していたが、これが「別 route の
+  # 偶然同じ座標 (高速バスで複数の系統が同じ高速道路の同区間を共有、都営 都01 と 都01折返
+  # が同じ住宅街区間を共有 など)」まで巻き込み、後段 extract_routes での bus_route_id
+  # 上書きで curves が大量喪失していた (実測 31,669 件 dedup のうち 31,583 件 99.7% が
+  # 別 route の curves で、本当に重複だった同 route 県境 curve はわずか 86 件)。
+  # no-dedup に切り替え、各 Curve = 1 track として愚直に追加する。bus_route_tracks 行数は
+  # +36% (87,758 → 119,427) するが、polyline / 採番が完全になる。
   def extract_tracks(doc, xml_path, code)
     nodes = doc.css("Curve")
-    added = 0
-    deduped = 0
     nodes.each do |node|
       gml_id = "#{xml_path}/#{node['id']}"
       coordinates = parse_coordinates(node.at("posList").text)
-
-      # 県境を跨ぐ Curve は隣県の N07 ファイルに同一座標で重複登録されている
-      # (実測 7 県分 26,862 curves 中 6,504 件 ≒ 24% が重複)。ここで座標 hash で dedup
-      # して bus_route_tracks の行数を減らす。後段の extract_routes が brt[href] で
-      # gml_id 経由で track を引くため、@track_id_by_gml は dedup 後の track_id を指す。
-      coord_hash = coordinates.hash
-      if (existing_track_id = @track_id_by_coord_hash[coord_hash])
-        @track_id_by_gml[gml_id] = existing_track_id
-        deduped += 1
-        next
-      end
 
       simplified = simplify_coordinates(coordinates)
       track_id = @bus_route_tracks.size + 1
@@ -121,11 +113,9 @@ class DataGenerator
         updated_at: @now
       }
       @track_id_by_gml[gml_id] = track_id
-      @track_id_by_coord_hash[coord_hash] = track_id
       @track_coords_by_id[track_id] = simplified
-      added += 1
     end
-    puts "  Tracks #{code}: #{nodes.size} curves (#{added} added, #{deduped} dedup)"
+    puts "  Tracks #{code}: #{nodes.size} curves"
   end
 
   # BusRoute 要素 = 路線属性。
