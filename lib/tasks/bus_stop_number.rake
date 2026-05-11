@@ -10,6 +10,35 @@
 # 通常のセットアップでは generate は呼ばず、load のみで CSV を反映する。
 # generate は再生成すると順序が変わりうる（CLAUDE.md 参照）。
 namespace :bus_stop_number do
+  # AR (BusStop.latitude 等) は LazyAttributeSet#fetch_value 経由で旧プロファイル上 21% 占めて
+  # いた。numberer / orienter / selector / diagnose は brbs.id / brbs.bus_stop_number /
+  # brbs.bus_stop.{latitude,longitude,name} しか触らないので、AR の代わりに plain Struct で
+  # wrap して JOIN 1 本の pluck で必要列だけロードする。
+  PluckedBrbs = Struct.new(:id, :bus_stop_number, :bus_stop, keyword_init: true)
+  PluckedBusStop = Struct.new(:latitude, :longitude, :name, keyword_init: true)
+
+  # 1 路線分の brbs を bus_stops JOIN ＋ pluck で軽量にロードする。
+  # AR インスタンス化を避け、attribute 読み出しを Struct 化することで hot loop の overhead を削減。
+  def self.load_brbs(bus_route)
+    bus_route.bus_route_bus_stops
+             .joins(:bus_stop)
+             .reorder("bus_route_bus_stops.id")
+             .pluck(
+               "bus_route_bus_stops.id",
+               "bus_route_bus_stops.bus_stop_number",
+               "bus_stops.latitude",
+               "bus_stops.longitude",
+               "bus_stops.name"
+             )
+             .map { |id, num, lat, lng, name|
+               PluckedBrbs.new(
+                 id: id,
+                 bus_stop_number: num,
+                 bus_stop: PluckedBusStop.new(latitude: lat, longitude: lng, name: name)
+               )
+             }
+  end
+
   # generate / profile から共通に呼ぶ計算本体。CSV に書き出す行配列を返す。
   #
   # 6000+ 路線 × N クエリの構成のため、開発環境の SQL クエリログ生成
@@ -22,19 +51,29 @@ namespace :bus_stop_number do
   #
   # 戻り値の :stitch / :number_result はすべて picked path のもの。compute_assignments と
   # diagnose の両方で同じ選択結果を扱うために共通化している。
-  def self.pick_best_assignment(bus_route, brbs)
+  # stitch:generate が出力した db/data/stitches.csv.gz から該当 route の stitch を引き、
+  # numberer + LineNameOrienter で採番する。stitches に該当行が無ければ stitcher を live 実行
+  # (= stitch:generate 後に DB へ新規 route が追加されたケース等の救済)。
+  def self.pick_best_assignment(bus_route, brbs, stitches)
     tracks = bus_route.bus_route_tracks.to_a
-    start_a = StartTerminalSelector.call(tracks, line_name: bus_route.line_name, bus_route_bus_stops: brbs)
+    start_a = StartTerminalSelector.call(
+      tracks,
+      line_name: bus_route.line_name,
+      bus_route_bus_stops: brbs,
+      stitch_fn: ->(t, s) { fetch_stitch(stitches, bus_route.id, t, s) }
+    )
 
     if start_a.nil?
-      return run_pipeline(tracks, bus_route, brbs, start: nil, fallback: false)
+      return run_pipeline(tracks, bus_route, brbs, start: nil, fallback: false, stitches: stitches)
     end
 
-    candidate_a = run_pipeline(tracks, bus_route, brbs, start: start_a, fallback: false)
-    candidate_b = run_pipeline(tracks, bus_route, brbs, start: nil, fallback: true)
+    candidate_a = run_pipeline(tracks, bus_route, brbs, start: start_a, fallback: false, stitches: stitches)
+    candidate_b = run_pipeline(tracks, bus_route, brbs, start: nil, fallback: true, stitches: stitches)
 
-    inv_a = count_inversions(candidate_a[:flat_coords], brbs, candidate_a[:assignments])
-    inv_b = count_inversions(candidate_b[:flat_coords], brbs, candidate_b[:assignments])
+    # vertex_indices は numberer が射影ループ内で計算済み (BusStopNumberer::Result.vertex_indices)。
+    # flat_coords を再走査しないので 1 route あたり O(brbs × coords) を 2 回節約できる。
+    inv_a = count_inversions(candidate_a[:number_result].vertex_indices, brbs, candidate_a[:assignments])
+    inv_b = count_inversions(candidate_b[:number_result].vertex_indices, brbs, candidate_b[:assignments])
 
     # A 優位 or 同点なら A (selector のメリットを残す)。B が明確に良ければ fallback。
     # 過去観察: selector は bridge 距離合計を最小化するが、それが順序最良と一致しないケースが
@@ -42,9 +81,10 @@ namespace :bus_stop_number do
     inv_a <= inv_b ? candidate_a : candidate_b
   end
 
-  # stitch + numberer + LineNameOrienter を 1 回回し、後続評価のため stitch/number_result も返す。
-  def self.run_pipeline(tracks, bus_route, brbs, start:, fallback:)
-    stitch = TrackStitcher.call_with_diagnostics(tracks, start: start)
+  # numberer + LineNameOrienter を 1 回回し、後続評価のため stitch/number_result も返す。
+  # stitch は stitches store から引く (live 実行は fetch_stitch のフォールバックパス)。
+  def self.run_pipeline(tracks, bus_route, brbs, start:, fallback:, stitches:)
+    stitch = fetch_stitch(stitches, bus_route.id, tracks, start)
     number_result = BusStopNumberer.call_with_diagnostics(
       flat_coords: stitch.flat_coords,
       bus_route_bus_stops: brbs,
@@ -60,29 +100,61 @@ namespace :bus_stop_number do
     }
   end
 
+  # stitches store から該当 (route_id, start) の stitch を引く。
+  # 無ければ stitcher を live 実行して store に追記する (stitch:generate 以降に DB へ新規 route が
+  # 入ったケース等)。store が完全に空なら stitch:generate の実行漏れを示すので明示的に raise する。
+  def self.fetch_stitch(stitches, route_id, tracks, start)
+    key = [ route_id, StitchStore.encode_start(start) ]
+    if (entry = stitches[key])
+      StitchStore.result_from_entry(entry)
+    else
+      result = TrackStitcher.call_with_diagnostics(tracks, start: start)
+      stitches[key] = StitchStore.entry_from_result(result)
+      result
+    end
+  end
+
   def self.compute_assignments
+    stitches = StitchStore.load_existing
+    if stitches.empty?
+      raise "Missing #{StitchStore.path}. Run 'rails stitch:generate' first."
+    end
+    initial_size = stitches.size
+    puts "  stitches loaded: #{initial_size} entries from #{StitchStore.path}"
+
+    scope = PrefectureFilter.apply(BusRoute.with_fragmented)
+
     rows = []
     fallback_count = 0
     ActiveRecord::Base.logger.silence(Logger::WARN) do
       # fragmented route の bus_stop も number を埋める (直接 URL アクセスで表示する用)。
       # default_scope で隠す対象でも、stops 自体は表示するので採番は必要。
-      BusRoute.with_fragmented.find_each do |bus_route|
-        brbs = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
-        result = pick_best_assignment(bus_route, brbs)
+      scope.find_each do |bus_route|
+        brbs = load_brbs(bus_route)
+        result = pick_best_assignment(bus_route, brbs, stitches)
         rows.concat(result[:assignments])
         fallback_count += 1 if result[:fallback]
       end
     end
+
+    new_entries = stitches.size - initial_size
+    if new_entries > 0
+      puts "  stitches: +#{new_entries} live-stitched entries (route 新規追加? stitch:generate を再実行推奨)"
+    end
+
     rows.sort_by! { |id, _| id }
     puts "  fallback to westmost: #{fallback_count} routes"
     rows
   end
 
-  # bus_stop_number 順に並べたバス停の「flat_coords 上での最近接 idx」が単調か。
+  # bus_stop_number 順に並べたバス停の「flat_coords 上での最近接 vertex idx」が単調か。
   # 5 idx 以上戻ったら inversion とカウントする (SimplifyRb の小ぶれを許容)。
-  # diagnose タスクの idx_inversions と同じ計算。
-  def self.count_inversions(flat_coords, brbs, assignments)
-    return 0 if flat_coords.empty?
+  # diagnose タスクの idx_inversions と同じ計算 (こちらは A/B 比較で 2 回呼ばれる)。
+  #
+  # vertex_indices は BusStopNumberer::Result.vertex_indices (= 各 brbs の最近接 vertex の
+  # flat_coords 内 index)。numberer の射影ループに乗せて計算済みなので、ここでは flat_coords
+  # を再走査しない。
+  def self.count_inversions(vertex_indices, brbs, assignments)
     num_by_id = assignments.to_h
     ordered = brbs.map { |b| [ b, num_by_id[b.id] ] }
                   .select { |_, n| n }
@@ -90,16 +162,8 @@ namespace :bus_stop_number do
     inversions = 0
     prev_idx = -1
     ordered.each do |b, _|
-      bs = b.bus_stop
-      min_idx = 0
-      min_dist_sq = Float::INFINITY
-      flat_coords.each_with_index do |c, idx|
-        d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
-        if d < min_dist_sq
-          min_dist_sq = d
-          min_idx = idx
-        end
-      end
+      min_idx = vertex_indices[b.id]
+      next if min_idx.nil?
       inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
       prev_idx = min_idx
     end
@@ -116,22 +180,27 @@ namespace :bus_stop_number do
     2.0 * 6_371_000.0 * Math.asin(Math.sqrt(a))
   }
 
-  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB)"
+  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB). Set PREFECTURE=東京都 to filter (skips CSV write)"
   task generate: :environment do
     require "csv"
     require "zlib"
     $stdout.sync = true
     csv_path = "db/data/bus_stop_numbers.csv.gz"
 
-    # 1. 路線の bus_route_tracks を TrackStitcher で 1 本の座標列に繋ぎ合わせる。
-    # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当てる。
+    # 1. db/data/stitches.csv.gz から stitch 結果を読み込む (stitch:generate 出力)。
+    # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当て、A/B 候補から best を選ぶ。
     rows = compute_assignments
 
-    Zlib::GzipWriter.open(csv_path) do |gz|
-      csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
-      rows.each { |row| csv << row }
+    if PrefectureFilter.active?
+      # 部分実行で全体 CSV を上書きすると残り県分の rows が消える。read-only モードで終了。
+      puts "PREFECTURE filter active: skipping CSV write (#{rows.size} rows computed in-memory only)"
+    else
+      Zlib::GzipWriter.open(csv_path) do |gz|
+        csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
+        rows.each { |row| csv << row }
+      end
+      puts "Wrote #{csv_path} (#{rows.size} rows)"
     end
-    puts "Wrote #{csv_path} (#{rows.size} rows)"
   end
 
   desc "Profile bus_stop_number:generate via stackprof (writes tmp/bus_stop_number_generate.stackprof)"
@@ -164,15 +233,24 @@ namespace :bus_stop_number do
     # 改善対象外。BusRoute の default_scope で除外され、ノイズ除去された状態で計測される。
     # 全路線含めて見たい場合は INCLUDE_FRAGMENTED=1 を渡す。
     scope = ENV["INCLUDE_FRAGMENTED"] ? BusRoute.with_fragmented : BusRoute.all
+    scope = PrefectureFilter.apply(scope)
     puts "Diagnose target: #{scope.count} routes (#{ENV['INCLUDE_FRAGMENTED'] ? 'INCLUDING' : 'EXCLUDING'} fragmented)"
 
+    stitches = StitchStore.load_existing
+    if stitches.empty?
+      raise "Missing #{StitchStore.path}. Run 'rails stitch:generate' first."
+    end
+    puts "Stitches loaded: #{stitches.size} entries from #{StitchStore.path}"
+
     ActiveRecord::Base.logger.silence(Logger::WARN) do
-      scope.includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop).find_each do |bus_route|
+      # bus_route_bus_stops / bus_stops は load_brbs (joins + pluck) でまとめて取るので
+      # eager-load の対象から外す。tracks のみ preload する。
+      scope.includes(:bus_route_tracks).find_each do |bus_route|
         # compute_assignments と同じ id 順 brbs を使うことで、LineNameOrienter (内部で `find` を
         # 使うため順序依存) の挙動が両者で揃う。順序が違うと A/B 候補で別の stop が match し、
         # 反転判定が変わり、stored bus_stop_number と diagnose 計測の flat がずれていた。
-        brbs_list = bus_route.bus_route_bus_stops.sort_by(&:id)
-        picked = pick_best_assignment(bus_route, brbs_list)
+        brbs_list = load_brbs(bus_route)
+        picked = pick_best_assignment(bus_route, brbs_list, stitches)
         stitch = picked[:stitch]
         number_result = picked[:number_result]
 
@@ -187,9 +265,10 @@ namespace :bus_stop_number do
 
         # 採番品質の指標 (1): バス停物理座標の進行方向反転を数える。街路の鋭角ターンも拾うため
         # ノイズが多いが、極端に大きい値は採番崩れのサイン。
-        ordered = bus_route.bus_route_bus_stops
-                            .select { |b| b.bus_stop_number }
-                            .sort_by(&:bus_stop_number)
+        # ordered は plucked brbs_list を流用 (bus_stop_number は plucked 列に同梱済み)。
+        ordered = brbs_list
+                    .select { |b| b.bus_stop_number }
+                    .sort_by(&:bus_stop_number)
         backward_turns = 0
         ordered.each_cons(3) do |a, b, c|
           ab_lat = b.bus_stop.latitude - a.bus_stop.latitude
@@ -205,24 +284,16 @@ namespace :bus_stop_number do
         # 後ろのバス停を先に並べた」という直接的なバグ。tolerance=5 で SimplifyRb 起因の小ぶれを許容。
         # 注意: 循環路線では「同じ場所を 2 回通る」ため raw closest_idx が周回終端で巻き戻る。
         # これは採番バグではないが指標上はカウントされてしまう (= 偽陽性)。
+        #
+        # vertex_indices は number_result が射影ループ内で計算済みなので flat_coords を再走査しない。
         idx_inversions = 0
-        flat = stitch.flat_coords
-        if !flat.empty?
-          prev_idx = -1
-          ordered.each do |b|
-            bs = b.bus_stop
-            min_idx = 0
-            min_dist_sq = Float::INFINITY
-            flat.each_with_index do |c, idx|
-              d = (bs.latitude - c[0]) ** 2 + (bs.longitude - c[1]) ** 2
-              if d < min_dist_sq
-                min_dist_sq = d
-                min_idx = idx
-              end
-            end
-            idx_inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
-            prev_idx = min_idx
-          end
+        vertex_indices = number_result.vertex_indices
+        prev_idx = -1
+        ordered.each do |b|
+          min_idx = vertex_indices[b.id]
+          next if min_idx.nil?
+          idx_inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
+          prev_idx = min_idx
         end
 
         # 採番品質の指標 (3): 連続するバス停間の物理距離 (m) に基づく outlier 検出。

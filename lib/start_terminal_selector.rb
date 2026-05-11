@@ -34,14 +34,20 @@ class StartTerminalSelector
   # する (例 500m) と「駅と無関係なバス停が偶然 "駅" を含む地名」を誤って拾うリスクが上がる。
   STATION_HINT_RADIUS_M = 200.0
 
-  def self.call(tracks, line_name: nil, bus_route_bus_stops: nil)
-    new(tracks, line_name, bus_route_bus_stops).call
+  # @param stitch_fn [Proc, nil] 内部の multi_try_min_bridge から呼ぶ stitcher。
+  #   `->(tracks, start) { TrackStitcher::Result }` を渡すと TrackStitcher 直接呼び出しを
+  #   差し替えできる。stitch:generate / bus_stop_number:generate は store からの read を
+  #   返す lambda を渡し、selector の試行 stitch も同じ store に乗せる。
+  #   省略時はデフォルトの TrackStitcher 直接呼び出し。
+  def self.call(tracks, line_name: nil, bus_route_bus_stops: nil, stitch_fn: nil)
+    new(tracks, line_name, bus_route_bus_stops, stitch_fn).call
   end
 
-  def initialize(tracks, line_name, bus_route_bus_stops)
+  def initialize(tracks, line_name, bus_route_bus_stops, stitch_fn = nil)
     @tracks = tracks
     @line_name = line_name
     @brbs = bus_route_bus_stops
+    @stitch_fn = stitch_fn || ->(t, s) { TrackStitcher.call_with_diagnostics(t, start: s) }
     @terminals = collect_terminals
   end
 
@@ -116,7 +122,7 @@ class StartTerminalSelector
   # tiebreak は最西端 (現状互換)。
   def multi_try_min_bridge
     scored = @terminals.map do |coord|
-      result = TrackStitcher.call_with_diagnostics(@tracks, start: coord)
+      result = @stitch_fn.call(@tracks, coord)
       total = result.bridge_segment_indices.sum { |i|
         next 0.0 if i + 1 >= result.flat_coords.size
         a = result.flat_coords[i]

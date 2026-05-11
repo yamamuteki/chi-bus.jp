@@ -113,11 +113,12 @@ XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮し�
 
 タスク：
 
-生成タスクは 4 点セット (CSV はそれぞれ git に commit、最新ソースに差し替えたいときだけ再生成):
+生成タスク (CSV はそれぞれ git に commit、最新ソースやロジック変更時だけ再生成):
 
 - `data:generate` — N07 / P11 XML をパースし、`db/data/bus_stops.csv.gz` / `bus_routes.csv.gz` / `bus_route_tracks.csv.gz` / `bus_route_bus_stops.csv.gz` を出力。
-- `bus_stop_number:generate` — TrackStitcher で stitch 済み flat_coords にバス停を投影し `db/data/bus_stop_numbers.csv.gz` を生成。
-- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv.gz` (city, formatted_address) を生成。所要 10 秒程度。ISJ raw データ (`db/isj/`) はダウンロード必要、生成 CSV だけ commit する。
+- `stitch:generate` — DB の `bus_route_tracks` を TrackStitcher で連結し、A/B 起点候補 (StartTerminalSelector による hint と最西端 fallback) の flat_coords を per-route で `db/data/stitches.csv.gz` に出力。`bus_stop_number:generate` の前提となる中間生成物 (これが無いと raise する)。`:load` タスクは無く、production の DB スキーマには反映されない (Heroku の db:seed でもスキップされる)。
+- `bus_stop_number:generate` — `stitches.csv.gz` を読み込んで numberer + orienter で `db/data/bus_stop_numbers.csv.gz` を生成。
+- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv.gz` (city, formatted_address) を生成。ISJ raw データ (`db/isj/`) はダウンロード必要、生成 CSV だけ commit する。
 - `keyword:generate` — kakasi で `db/data/keywords.csv.gz` を生成 (`libkakasi.so.2` 要、Dockerfile.dev の kakasi パッケージに同梱)。
 
 ロードタスク:
@@ -128,9 +129,10 @@ XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮し�
 
 診断/プロファイルタスク (採番品質改善で常用):
 
-- `data:profile` / `bus_stop_number:profile` — stackprof で対応する `:generate` を計測し `tmp/*.stackprof` に出力。
+- `data:profile` / `stitch:profile` / `bus_stop_number:profile` — stackprof で対応する `:generate` を計測し `tmp/*.stackprof` に出力。
 - `bus_stop_number:diagnose` — 全路線の stitch + 採番品質指標 (idx_inversions / anomaly_jumps / off_track / backward_turns 他) を `tmp/bus_stop_number_diagnostics.csv` に書き出す。`INCLUDE_FRAGMENTED=1` で fragmented 路線も含める。`tmp/chi-bus-baseline/` のベースライン CSV と diff することで採番ロジック変更の影響を測る。
 - `bus_stop_number:inspect ROUTE_ID=N` — 1 路線分の tracks / StartTerminalSelector の選択 / stitch_steps / 各バス停の closest_idx を標準出力に詳細ダンプ。diagnose で異常値が出た路線の深掘りに使う。
+- `PREFECTURE=東京都` を `stitch:generate` / `bus_stop_number:generate` / `bus_stop_number:diagnose` に渡すと該当県の routes だけ計算する (CSV 上書きは skip、ベンチ専用モード)。アルゴリズム反復のフィードバックループを高速化するため、`100 回反復するタスク` にだけ filter を入れている。`data:generate` には適用していない (新規 ID 採番タスクなので部分実行で downstream の参照が壊れるため)、`geocode:generate` / `keyword:generate` も適用していない (反復頻度が低く ROI が無いため)。
 
 ### テスト
 
