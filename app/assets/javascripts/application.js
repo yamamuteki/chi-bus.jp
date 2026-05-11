@@ -20,7 +20,7 @@
 function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath) {
   if (!document.body.meta) { document.body.meta = new Object(); }
   handler = Gmaps.build('Google');
-  handler.buildMap({ provider: { scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+  handler.buildMap({ provider: { gestureHandling: 'cooperative' }, internal: {id: 'map'}}, function(){
     var markers = $.map(markersJson, function(busStop){
       var marker = handler.addMarker(busStop, { visible: false });
       marker.id = busStop.id;
