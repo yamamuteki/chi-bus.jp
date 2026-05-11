@@ -451,8 +451,9 @@ namespace :bus_stop_number do
       diag_path = "tmp/bus_stop_number_diagnostics.csv"
       diag_rows = result[:diag_rows]
       # compute_assignments は with_fragmented で回す → INCLUDE_FRAGMENTED 未指定なら fragmented 除外。
+      # default_scope { fragmented: false } があるため where(fragmented: true) は 0 件になる。
       unless ENV["INCLUDE_FRAGMENTED"]
-        fragmented_ids = BusRoute.where(fragmented: true).pluck(:id).to_set
+        fragmented_ids = BusRoute.fragmented_only.pluck(:id).to_set
         diag_rows = diag_rows.reject { |row| fragmented_ids.include?(row[0]) }
       end
       write_diagnose_results(diag_rows, diag_path)
@@ -497,7 +498,7 @@ namespace :bus_stop_number do
     rows = result[:diag_rows]
 
     unless ENV["INCLUDE_FRAGMENTED"]
-      fragmented_ids = BusRoute.where(fragmented: true).pluck(:id).to_set
+      fragmented_ids = BusRoute.fragmented_only.pluck(:id).to_set
       rows = rows.reject { |row| fragmented_ids.include?(row[0]) }
     end
 
