@@ -45,6 +45,10 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
     }
     handler.bounds.extendWith(markers);
     handler.fitMapToBounds();
+    // markers / polylines が揃ったタイミングで common.js 側に通知し、Google Maps の
+    // mouseover / mouseout / click listener をまとめて attach させる。polyline 無しの
+    // ページでも将来マーカー側 hook を足したいので if (polylinesJson) の外で trigger する。
+    $(document).trigger("chi-bus:map-ready");
     var centerMarker = handler.addMarker({
       "lat": handler.getMap().getCenter().lat(),
       "lng": handler.getMap().getCenter().lng(),

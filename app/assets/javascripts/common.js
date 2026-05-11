@@ -73,9 +73,10 @@
   // application.js は 1 つの bus_route に対して複数の polyline（tracks の数だけ）を作ることがあり、
   // 同じ id を共有している。ホバー時はそれら全部を一括で強調表示したいので、find（最初の 1 件）ではなく filter を使う。
   // marker は 1 つの bus_stop につき 1 つだけだが、コードを揃えるため同じ関数で扱う。
-  // data 属性は文字列で取り出されるので "+ ''" で文字列化して比較している。
+  // data 属性側は文字列、polyline.id 側は number で来るので両側を "" 付与で文字列化して比較する。
   function findMapObjectsById(collection, id) {
-    return (collection || []).filter(function(obj) { return obj.id + "" === id; });
+    const target = id + "";
+    return (collection || []).filter(function(obj) { return obj.id + "" === target; });
   }
 
   // document.body.meta は drawMap() が呼ばれて初めて設定される。
@@ -84,14 +85,19 @@
     return document.body.meta || {};
   }
 
-  // 路線リンクのホバー: 対応する polyline 群を強調表示／元に戻す
-  function setBusRouteHighlight($link, highlighted) {
-    const id = $link.attr("data-bus-route-link");
+  // 指定 id を持つ polyline 群を強調表示／元に戻す。
+  // リスト側 hover とマップ側 hover の両方から呼ぶので $link ではなく id で受ける。
+  function setBusRouteHighlightById(id, highlighted) {
     const polylines = findMapObjectsById(getMapMeta().polylines, id);
     const style = highlighted ? POLYLINE_STYLE_HIGHLIGHTED : POLYLINE_STYLE_NORMAL;
     polylines.forEach(function(polyline) {
       polyline.getServiceObject().setOptions(style);
     });
+  }
+
+  // 路線リンクのホバー: data 属性から id を取り出して setBusRouteHighlightById に委譲
+  function setBusRouteHighlight($link, highlighted) {
+    setBusRouteHighlightById($link.attr("data-bus-route-link"), highlighted);
   }
 
   // 停留所リンクのホバー: 対応する marker をバウンスさせる／止める
@@ -131,6 +137,26 @@
     });
     $(document).on("mouseleave click", SELECTOR_BUS_STOP_LINK, function() {
       setBusStopAnimation($(this), null);
+    });
+
+    // マップ上の polyline 自身に hover した時のハイライト。
+    // polyline は drawMap の async コールバック内で初めて生成されるため、
+    // application.js がそこで chi-bus:map-ready を trigger する。受け取った時点で
+    // Google Maps の mouseover/mouseout listener を attach する。
+    $(document).on("chi-bus:map-ready", function() {
+      (getMapMeta().polylines || []).forEach(function(polyline) {
+        const serviceObject = polyline.getServiceObject();
+        google.maps.event.addListener(serviceObject, "mouseover", function() {
+          setBusRouteHighlightById(polyline.id, true);
+        });
+        google.maps.event.addListener(serviceObject, "mouseout", function() {
+          setBusRouteHighlightById(polyline.id, false);
+        });
+        // polyline 自身をクリックしたら対応する bus_route 詳細ページへ遷移
+        google.maps.event.addListener(serviceObject, "click", function() {
+          window.location.href = "/bus_routes/" + polyline.id;
+        });
+      });
     });
   });
 })();
