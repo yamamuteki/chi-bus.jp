@@ -28,6 +28,19 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
       marker.panTo = function() {};
       return marker;
     });
+    // 単独路線の水色マーカーは HDPI 画像 (52x74) を default と同じ 26x37 で描かせる。
+    // gmaps4rails の marker.picture API は scaledSize を露出していないので、生成後に
+    // setIcon で scaledSize を後がけする。HDPI 画面でも default と同じ解像度を保つ。
+    $.each(markers, function(){
+      var serviceObject = this.getServiceObject();
+      var icon = serviceObject.getIcon();
+      if (icon && typeof icon === 'object' && icon.url && icon.url.indexOf('?style=single') !== -1) {
+        serviceObject.setIcon({
+          url: icon.url,
+          scaledSize: new google.maps.Size(26, 37)
+        });
+      }
+    });
     $.each(markers, function(index){
       var marker = this.getServiceObject();
       window.setTimeout(function(){

@@ -92,6 +92,13 @@ h1, .h1, h2, .h2, h3, .h3 {
   // dvh はモバイル Safari のアドレスバー表示状態に追従するため、100vh で起きていた「実画面より大きくなる」問題が出ない。
   height: calc(100dvh - 120px);
   margin-bottom: 10px;
+
+  // 通過路線が 1 本だけの bus_stop マーカー。helper で marker.picture に
+  // `?style=single` クエリ付きの URL を渡し、ここで hue-rotate して水色化する。
+  // 画像実体は Google Maps の default 赤マーカー (spotlight-poi3) と同一形状なので、色だけ変わる。
+  img[src*="?style=single"] {
+    filter: hue-rotate(180deg);
+  }
 }
 
 /*
