@@ -210,7 +210,7 @@ GEM
     msgpack (1.8.0)
     multi_xml (0.9.0)
       bigdecimal (>= 3.1, < 5)
-    net-imap (0.6.4)
+    net-imap (0.6.4.1)
       date
       net-protocol
     net-pop (0.1.2)
