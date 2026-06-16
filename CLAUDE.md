@@ -113,7 +113,7 @@ XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮し�
 
 タスク：
 
-生成タスク (CSV はそれぞれ git に commit、最新ソースやロジック変更時だけ再生成):
+生成タスク (CSV はそれぞれ git に commit、最新ソースやロジック変更時だけ再生成。`stitches.csv.gz` のみ例外で `.gitignore` 対象):
 
 - `data:generate` — N07 / P11 XML をパースし、`db/data/bus_stops.csv.gz` / `bus_routes.csv.gz` / `bus_route_tracks.csv.gz` / `bus_route_bus_stops.csv.gz` を出力。
 - `stitch:generate` — DB の `bus_route_tracks` を TrackStitcher で連結し、A/B 起点候補 (StartTerminalSelector による hint と最西端 fallback) の flat_coords を per-route で `db/data/stitches.csv.gz` に出力。`bus_stop_number:generate` の前提となるローカルキャッシュ (これが無いと raise する) で、`.gitignore` 対象。production には載らず、Heroku の db:seed でもスキップされる。ローカルで採番反復を始める前に 1 度だけ走らせれば、以後は TrackStitcher を invalidate するロジック変更時のみ再走すれば良い。
