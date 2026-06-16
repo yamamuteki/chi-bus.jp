@@ -6,10 +6,10 @@ SitemapGenerator::Sitemap.create do
   add about_path, priority: 0.7, changefreq: "monthly"
 
   BusStop.find_each do |bus_stop|
-    add bus_stop_path(bus_stop), lastmod: bus_stop.updated_at, changefreq: "monthly"
+    add bus_stop_path(bus_stop), changefreq: "monthly"
   end
 
   BusRoute.find_each do |bus_route|
-    add bus_route_path(bus_route), lastmod: bus_route.updated_at, changefreq: "monthly"
+    add bus_route_path(bus_route), changefreq: "monthly"
   end
 end
