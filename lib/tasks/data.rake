@@ -40,8 +40,6 @@ class DataGenerator
   STOP_XML_FORMAT  = "db/ksj/p11/P11-10_%s-jgd-g.xml.gz".freeze
 
   def initialize
-    @now = Time.zone.now
-
     # 各テーブルに投入する行データ（Hash の配列）。最後にまとめて CSV に書き出す。
     @bus_route_tracks    = []
     @bus_routes          = []
@@ -108,9 +106,7 @@ class DataGenerator
         id: track_id,
         gml_id: gml_id,
         coordinates: coordinates_to_compact_json(simplified),
-        bus_route_id: nil, # extract_routes で後付けする
-        created_at: @now,
-        updated_at: @now
+        bus_route_id: nil # extract_routes で後付けする
       }
       @track_id_by_gml[gml_id] = track_id
       @track_coords_by_id[track_id] = simplified
@@ -150,7 +146,7 @@ class DataGenerator
     key = attrs.values_at(:bus_type, :operation_company, :line_name, :weekday_rate, :saturday_rate, :holiday_rate, :note)
     @route_id_by_key[key] ||= begin
       new_id = @bus_routes.size + 1
-      @bus_routes << attrs.merge(id: new_id, fragmented: false, created_at: @now, updated_at: @now)
+      @bus_routes << attrs.merge(id: new_id, fragmented: false)
       new_id
     end
   end
@@ -294,8 +290,6 @@ class DataGenerator
       name: node.at("busStopName").text,
       latitude:  pos.split[0].to_f,
       longitude: pos.split[1].to_f,
-      created_at: @now,
-      updated_at: @now,
       # prefecture は P11 XML から、city / formatted_address は geocode:generate (ISJ)、
       # keyword は keyword:generate (kakasi) で別途埋まる。
       prefecture: prefecture,
@@ -329,9 +323,7 @@ class DataGenerator
         id: @bus_route_bus_stops.size + 1,
         bus_route_id: route_id,
         bus_stop_id: bs_id,
-        bus_stop_number: nil, # bus_stop_number:load が CSV から埋める
-        created_at: @now,
-        updated_at: @now
+        bus_stop_number: nil # bus_stop_number:load が CSV から埋める
       }
     end
   end
@@ -360,13 +352,13 @@ class DataGenerator
     data_dir.mkpath
 
     write_csv(data_dir, "bus_routes", @bus_routes,
-              %w[id bus_type operation_company line_name weekday_rate saturday_rate holiday_rate note fragmented created_at updated_at])
+              %w[id bus_type operation_company line_name weekday_rate saturday_rate holiday_rate note fragmented])
     write_csv(data_dir, "bus_route_tracks", @bus_route_tracks,
-              %w[id gml_id coordinates bus_route_id created_at updated_at])
+              %w[id gml_id coordinates bus_route_id])
     write_csv(data_dir, "bus_stops", @bus_stops,
-              %w[id gml_id name latitude longitude created_at updated_at prefecture city formatted_address keyword])
+              %w[id gml_id name latitude longitude prefecture city formatted_address keyword])
     write_csv(data_dir, "bus_route_bus_stops", @bus_route_bus_stops,
-              %w[id bus_route_id bus_stop_id bus_stop_number created_at updated_at])
+              %w[id bus_route_id bus_stop_id bus_stop_number])
   end
 
   # gzip 圧縮した CSV を出力する。GitHub の 100MB ファイル上限を超える
