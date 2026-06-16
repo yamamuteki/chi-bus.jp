@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### リリース手順
 
 1. develop が安定していることを確認
-2. `gh release create vX.Y.Z --target develop --title vX.Y.Z --notes ""` で軽量タグ + Release を 1 コマンド作成 (リリースノート本文は後から GitHub UI で書き足す運用、過去 release は body 空)
+2. `gh release create vX.Y.Z --target develop --title vX.Y.Z --generate-notes` で軽量タグ + Release を 1 コマンド作成
 3. develop → master の PR は **ユーザーが手動で作成・マージ** する → master push が Heroku オートデプロイをトリガ
 
 タグを develop 側に打つのは「master マージ前にバージョンを確定させたい」「Heroku が master push を契機にデプロイするので確定状態にしたい」ため。一般的な「master のマージコミットに打つ」フローからはずれるが、master のマージコミットからもタグは到達できるので checkout / hotfix 起点には支障なし。
