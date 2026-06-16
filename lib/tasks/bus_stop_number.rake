@@ -39,6 +39,31 @@ namespace :bus_stop_number do
              }
   end
 
+  # 複数 route 分の brbs を 1 query でまとめて取り、route_id → brbs 配列の Hash を返す。
+  # per-route の load_brbs を呼ぶ N+1 を回避する。chunk あたり 1 query で大幅高速化。
+  def self.load_brbs_by_route(bus_route_ids)
+    by_route = Hash.new { |h, k| h[k] = [] }
+    BusRouteBusStop
+      .joins(:bus_stop)
+      .where(bus_route_id: bus_route_ids)
+      .reorder("bus_route_bus_stops.bus_route_id", "bus_route_bus_stops.id")
+      .pluck(
+        "bus_route_bus_stops.bus_route_id",
+        "bus_route_bus_stops.id",
+        "bus_route_bus_stops.bus_stop_number",
+        "bus_stops.latitude",
+        "bus_stops.longitude",
+        "bus_stops.name"
+      ).each do |route_id, id, num, lat, lng, name|
+      by_route[route_id] << PluckedBrbs.new(
+        id: id,
+        bus_stop_number: num,
+        bus_stop: PluckedBusStop.new(latitude: lat, longitude: lng, name: name)
+      )
+    end
+    by_route
+  end
+
   # generate / profile から共通に呼ぶ計算本体。CSV に書き出す行配列を返す。
   #
   # 6000+ 路線 × N クエリの構成のため、開発環境の SQL クエリログ生成
@@ -114,7 +139,10 @@ namespace :bus_stop_number do
     end
   end
 
-  def self.compute_assignments
+  # per-route 採番処理を並列化する。NUMBER_WORKERS env で worker 数を上書き可能 (default = Etc.nprocessors)。
+  # with_diagnostics: true で診断用 quality metrics も同時計算する (= diagnose task の重複計算を回避)。
+  def self.compute_assignments(with_diagnostics: false)
+    require "etc"
     stitches = StitchStore.load_existing
     if stitches.empty?
       raise "Missing #{StitchStore.path}. Run 'rails stitch:generate' first."
@@ -123,28 +151,110 @@ namespace :bus_stop_number do
     puts "  stitches loaded: #{initial_size} entries from #{StitchStore.path}"
 
     scope = PrefectureFilter.apply(BusRoute.with_fragmented)
+    bus_route_ids = scope.pluck(:id)
+    # default = nprocessors - 1 (= parent process + db / docker daemon 用に 1 CPU 残す)。
+    # VM 全 CPU を worker で奪い合うと context switching が増えてかえって遅くなる。
+    worker_count = ENV.fetch("NUMBER_WORKERS") { [ Etc.nprocessors - 1, 1 ].max }.to_i
 
-    rows = []
-    fallback_count = 0
-    ActiveRecord::Base.logger.silence(Logger::WARN) do
-      # fragmented route の bus_stop も number を埋める (直接 URL アクセスで表示する用)。
-      # default_scope で隠す対象でも、stops 自体は表示するので採番は必要。
-      scope.find_each do |bus_route|
-        brbs = load_brbs(bus_route)
-        result = pick_best_assignment(bus_route, brbs, stitches)
-        rows.concat(result[:assignments])
-        fallback_count += 1 if result[:fallback]
+    results = if worker_count <= 1 || bus_route_ids.size <= worker_count
+      # 1 worker のときは fork overhead を払わず in-process で回す。
+      [ compute_assignments_for(bus_route_ids, stitches, with_diagnostics: with_diagnostics) ]
+    else
+      # 自前 Process.fork で並列化する。parallel gem は子の Marshal-pipe 経由の結果転送で
+      # 中規模 (diag_rows 8MB 級) でも子の exit を detect できず親が wait に張り付くケースが
+      # あったため、parent からは control だけ持ち、子→親のデータ転送は file 経由にする。
+      require "fileutils"
+      require "securerandom"
+      ActiveRecord::Base.connection_handler.connection_pools.each(&:disconnect!)
+      chunk_size = (bus_route_ids.size.to_f / worker_count).ceil
+      chunks = bus_route_ids.each_slice(chunk_size).to_a
+      tmp_dir = "tmp/_parallel_assignments_#{SecureRandom.hex(4)}"
+      FileUtils.mkdir_p(tmp_dir)
+
+      pids = chunks.each_with_index.map do |ids_chunk, idx|
+        Process.fork do
+          # 子プロセスは親から継承した PG socket を共有してしまい、デッドロックの原因になる。
+          # disconnect! で stale connection を切り、次のクエリで新規確立させる。
+          ActiveRecord::Base.connection_handler.connection_pools.each(&:disconnect!)
+          # stitches は parent で load 済み → fork の copy-on-write で memory 共有 (再 load 不要)。
+          # child で fetch_stitch が新 entry を追加する場合は、その page だけ child memory にコピー
+          # される (= CoW)。それ以外は parent と共有のままで、I/O コスト 0。
+          partial = compute_assignments_for(ids_chunk, stitches, with_diagnostics: with_diagnostics)
+          File.binwrite(File.join(tmp_dir, "#{idx}.dump"), Marshal.dump(partial))
+          # exit! で at_exit hook / AR の after_fork hook 等のクリーンアップを skip し
+          # 確実に終了させる (= 通常の exit だと親と共有する socket の close で hang する)。
+          exit!(0)
+        end
       end
+      pids.each { |pid| Process.waitpid(pid) }
+
+      chunks.each_with_index.map do |_, idx|
+        path = File.join(tmp_dir, "#{idx}.dump")
+        partial = Marshal.load(File.binread(path))
+        File.delete(path)
+        partial
+      end.tap { FileUtils.rm_rf(tmp_dir) }
     end
 
-    new_entries = stitches.size - initial_size
-    if new_entries > 0
-      puts "  stitches: +#{new_entries} live-stitched entries (route 新規追加? stitch:generate を再実行推奨)"
+    rows = []
+    diag_rows = []
+    fallback_count = 0
+    new_stitch_count = 0
+    results.each do |partial|
+      rows.concat(partial[:rows])
+      diag_rows.concat(partial[:diag_rows]) if with_diagnostics
+      fallback_count += partial[:fallback_count]
+      new_stitch_count += partial[:new_stitch_count]
+    end
+
+    if new_stitch_count > 0
+      puts "  stitches: +#{new_stitch_count} live-stitched entries (route 新規追加? stitch:generate を再実行推奨)"
     end
 
     rows.sort_by! { |id, _| id }
-    puts "  fallback to westmost: #{fallback_count} routes"
-    rows
+    puts "  fallback to westmost: #{fallback_count} routes (#{worker_count} workers)"
+    with_diagnostics ? { rows: rows, diag_rows: diag_rows } : rows
+  end
+
+  # bus_route_ids の chunk 分を採番する。並列 worker 内 / シリアル両方から呼ぶ。
+  def self.compute_assignments_for(bus_route_ids, stitches, with_diagnostics: false)
+    initial_size = stitches.size
+    rows = []
+    diag_rows = []
+    fallback_count = 0
+
+    # silence(Logger::WARN) では caller_locations / BacktraceCleaner の build が残るので、
+    # logger を nil に置き換えて SQL ログ生成を完全 skip する (per-route の AR query が重い
+    # ループで効く)。
+    saved_logger = ActiveRecord::Base.logger
+    ActiveRecord::Base.logger = nil
+    begin
+      # per-route の load_brbs を呼ぶ N+1 を、chunk 全体 1 query の load_brbs_by_route で置き換え。
+      # bus_route_tracks も includes で eager load し、per-route の追加 query を回避する。
+      brbs_by_route = load_brbs_by_route(bus_route_ids)
+      BusRoute.with_fragmented
+              .where(id: bus_route_ids)
+              .includes(:bus_route_tracks)
+              .find_each do |bus_route|
+        brbs = brbs_by_route[bus_route.id]
+        result = pick_best_assignment(bus_route, brbs, stitches)
+        rows.concat(result[:assignments])
+        fallback_count += 1 if result[:fallback]
+
+        if with_diagnostics
+          # brbs に新採番を inject してから quality metrics を計算する
+          # (stored bus_stop_number ではなく今 picked した結果で順序評価)。
+          num_by_id = result[:assignments].to_h
+          brbs.each { |b| b.bus_stop_number = num_by_id[b.id] }
+          diag_rows << build_diagnose_row(bus_route, brbs, result[:stitch], result[:number_result])
+        end
+      end
+    ensure
+      ActiveRecord::Base.logger = saved_logger
+    end
+
+    { rows: rows, diag_rows: diag_rows, fallback_count: fallback_count,
+      new_stitch_count: stitches.size - initial_size }
   end
 
   # bus_stop_number 順に並べたバス停の「flat_coords 上での最近接 vertex idx」が単調か。
@@ -180,192 +290,83 @@ namespace :bus_stop_number do
     2.0 * 6_371_000.0 * Math.asin(Math.sqrt(a))
   }
 
-  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB). PREFECTURE=東京都 で 1 県だけ再計算し既存 CSV にマージ (CSV は常に 47 都道府県分完全、DB 反映には bus_stop_number:load を続けて呼ぶ)"
-  task generate: :environment do
+  # 1 路線分の diagnose row (CSV カラム順) を返す。
+  # brbs_list は事前に bus_stop_number を inject 済みである前提 (compute_assignments_for で setup)。
+  DIAGNOSE_OFF_TRACK_THRESHOLD_M = 200.0
+  def self.build_diagnose_row(bus_route, brbs_list, stitch, number_result)
+    off_track_count = 0
+    off_track_max_m = 0.0
+    number_result.distances_m.each_value do |dist|
+      next if dist.nil?
+      off_track_count += 1 if dist > DIAGNOSE_OFF_TRACK_THRESHOLD_M
+      off_track_max_m = dist if dist > off_track_max_m
+    end
+
+    ordered = brbs_list.select { |b| b.bus_stop_number }.sort_by(&:bus_stop_number)
+    backward_turns = 0
+    ordered.each_cons(3) do |a, b, c|
+      ab_lat = b.bus_stop.latitude - a.bus_stop.latitude
+      ab_lng = b.bus_stop.longitude - a.bus_stop.longitude
+      bc_lat = c.bus_stop.latitude - b.bus_stop.latitude
+      bc_lng = c.bus_stop.longitude - b.bus_stop.longitude
+      dot = ab_lat * bc_lat + ab_lng * bc_lng
+      backward_turns += 1 if dot < 0
+    end
+
+    idx_inversions = 0
+    vertex_indices = number_result.vertex_indices
+    prev_idx = -1
+    ordered.each do |b|
+      min_idx = vertex_indices[b.id]
+      next if min_idx.nil?
+      idx_inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
+      prev_idx = min_idx
+    end
+
+    distances_m = ordered.each_cons(2).map { |a, b|
+      HAVERSINE.call(a.bus_stop.latitude, a.bus_stop.longitude,
+                     b.bus_stop.latitude, b.bus_stop.longitude)
+    }
+    anomaly_jumps = 0
+    consec_max_m = 0.0
+    median_m = 0.0
+    if !distances_m.empty?
+      consec_max_m = distances_m.max
+      sorted_d = distances_m.sort
+      median_m = sorted_d[sorted_d.size / 2]
+      threshold_m = [ 500.0, median_m * 3 ].max
+      anomaly_jumps = distances_m.count { |d| d > threshold_m }
+    end
+
+    [
+      bus_route.id,
+      "#{bus_route.operation_company} #{bus_route.line_name}".strip,
+      stitch.total_tracks,
+      stitch.skipped_parallel,
+      stitch.reversed_count,
+      stitch.isolated_count,
+      stitch.max_jump_distance.round(1),
+      stitch.large_jump_count,
+      stitch.connection_jump_max.round(1),
+      stitch.connection_large_jump_count,
+      stitch.connection_count,
+      stitch.flat_coords.size,
+      ordered.size,
+      backward_turns,
+      off_track_count,
+      off_track_max_m.round(1),
+      idx_inversions,
+      anomaly_jumps,
+      consec_max_m.round(1),
+      median_m.round(1)
+    ]
+  end
+
+  # diagnose 結果を CSV + サマリ表示。generate WITH_DIAGNOSTICS=1 と diagnose task の両方から呼ぶ。
+  def self.write_diagnose_results(rows, out_path)
     require "csv"
-    require "zlib"
-    $stdout.sync = true
-    csv_path = "db/data/bus_stop_numbers.csv.gz"
-
-    # 1. db/data/stitches.csv.gz から stitch 結果を読み込む (stitch:generate 出力)。
-    # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当て、A/B 候補から best を選ぶ。
-    rows = compute_assignments
-
-    if PrefectureFilter.active?
-      # 既存 CSV を load → 該当県の brbs を更新 (= 他 46 県の rows はそのまま) → 書き戻し。
-      # これで CSV は常に 47 都道府県分完全。DB 反映は bus_stop_number:load を続けて呼ぶ。
-      existing = load_existing_assignments(csv_path)
-      rows.each { |id, num| existing[id] = num }
-      sorted = existing.sort.to_a
-      Zlib::GzipWriter.open(csv_path) do |gz|
-        csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
-        sorted.each { |row| csv << row }
-      end
-      puts "PREFECTURE filter: merged #{rows.size} rows into #{csv_path} (total #{sorted.size}). Run 'bus_stop_number:load' to apply to DB."
-    else
-      Zlib::GzipWriter.open(csv_path) do |gz|
-        csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
-        rows.each { |row| csv << row }
-      end
-      puts "Wrote #{csv_path} (#{rows.size} rows)"
-    end
-  end
-
-  # 既存 bus_stop_numbers.csv.gz を Hash{brbs_id => bus_stop_number} で読み込む。
-  # PREFECTURE filter で部分更新する際に「他 46 県分」を保持するために使う。
-  def self.load_existing_assignments(csv_path)
-    return {} unless File.exist?(csv_path)
-    map = {}
-    Zlib::GzipReader.open(csv_path) do |f|
-      CSV.new(f, headers: true).each do |row|
-        num = row["bus_stop_number"]
-        map[row["bus_route_bus_stop_id"].to_i] = num.nil? || num.empty? ? nil : num.to_i
-      end
-    end
-    map
-  end
-
-  desc "Profile bus_stop_number:generate via stackprof (writes tmp/bus_stop_number_generate.stackprof)"
-  task profile: :environment do
-    require "stackprof"
-
-    $stdout.sync = true
-    out = "tmp/bus_stop_number_generate.stackprof"
-    StackProf.run(mode: :wall, out: out, interval: 1000) do
-      compute_assignments
-    end
-    puts ""
-    puts "Profile saved to #{out}"
-    puts "View top by self time:   bundle exec stackprof #{out} --text --limit 30"
-    puts "View top by total time:  bundle exec stackprof #{out} --text --total --limit 30"
-  end
-
-  desc "Diagnose TrackStitcher quality per route into tmp/bus_stop_number_diagnostics.csv (set INCLUDE_FRAGMENTED=1 to include fragmented routes)"
-  task diagnose: :environment do
-    require "csv"
-    $stdout.sync = true
-    out_path = "tmp/bus_stop_number_diagnostics.csv"
-    rows = []
-
-    # バス停が「軌跡から離れている」とみなす閾値 (m)。本来 10〜30m に収まるはずなので、
-    # この値を超えたら「軌跡データが欠損して別エリアに置き去り」のサイン。
-    off_track_threshold_m = 200.0
-
-    # fragmented 路線は「N07 上で 1 路線として表現できない」と判定済みなので、品質改善の
-    # 改善対象外。BusRoute の default_scope で除外され、ノイズ除去された状態で計測される。
-    # 全路線含めて見たい場合は INCLUDE_FRAGMENTED=1 を渡す。
-    scope = ENV["INCLUDE_FRAGMENTED"] ? BusRoute.with_fragmented : BusRoute.all
-    scope = PrefectureFilter.apply(scope)
-    puts "Diagnose target: #{scope.count} routes (#{ENV['INCLUDE_FRAGMENTED'] ? 'INCLUDING' : 'EXCLUDING'} fragmented)"
-
-    stitches = StitchStore.load_existing
-    if stitches.empty?
-      raise "Missing #{StitchStore.path}. Run 'rails stitch:generate' first."
-    end
-    puts "Stitches loaded: #{stitches.size} entries from #{StitchStore.path}"
-
-    ActiveRecord::Base.logger.silence(Logger::WARN) do
-      # bus_route_bus_stops / bus_stops は load_brbs (joins + pluck) でまとめて取るので
-      # eager-load の対象から外す。tracks のみ preload する。
-      scope.includes(:bus_route_tracks).find_each do |bus_route|
-        # compute_assignments と同じ id 順 brbs を使うことで、LineNameOrienter (内部で `find` を
-        # 使うため順序依存) の挙動が両者で揃う。順序が違うと A/B 候補で別の stop が match し、
-        # 反転判定が変わり、stored bus_stop_number と diagnose 計測の flat がずれていた。
-        brbs_list = load_brbs(bus_route)
-        picked = pick_best_assignment(bus_route, brbs_list, stitches)
-        stitch = picked[:stitch]
-        number_result = picked[:number_result]
-
-        # 軌跡から離れたバス停の集計。データ欠損路線を識別する指標。
-        off_track_count = 0
-        off_track_max_m = 0.0
-        number_result.distances_m.each_value do |dist|
-          next if dist.nil?
-          off_track_count += 1 if dist > off_track_threshold_m
-          off_track_max_m = dist if dist > off_track_max_m
-        end
-
-        # 採番品質の指標 (1): バス停物理座標の進行方向反転を数える。街路の鋭角ターンも拾うため
-        # ノイズが多いが、極端に大きい値は採番崩れのサイン。
-        # ordered は plucked brbs_list を流用 (bus_stop_number は plucked 列に同梱済み)。
-        ordered = brbs_list
-                    .select { |b| b.bus_stop_number }
-                    .sort_by(&:bus_stop_number)
-        backward_turns = 0
-        ordered.each_cons(3) do |a, b, c|
-          ab_lat = b.bus_stop.latitude - a.bus_stop.latitude
-          ab_lng = b.bus_stop.longitude - a.bus_stop.longitude
-          bc_lat = c.bus_stop.latitude - b.bus_stop.latitude
-          bc_lng = c.bus_stop.longitude - b.bus_stop.longitude
-          dot = ab_lat * bc_lat + ab_lng * bc_lng
-          backward_turns += 1 if dot < 0
-        end
-
-        # 採番品質の指標 (2): bus_stop_number 順に並べたバス停の raw closest_idx (= flat_coords 上で
-        # 最も近い 1 点の idx) が単調か。減少した場合 = 採番が「軌跡上で前にあるバス停より、
-        # 後ろのバス停を先に並べた」という直接的なバグ。tolerance=5 で SimplifyRb 起因の小ぶれを許容。
-        # 注意: 循環路線では「同じ場所を 2 回通る」ため raw closest_idx が周回終端で巻き戻る。
-        # これは採番バグではないが指標上はカウントされてしまう (= 偽陽性)。
-        #
-        # vertex_indices は number_result が射影ループ内で計算済みなので flat_coords を再走査しない。
-        idx_inversions = 0
-        vertex_indices = number_result.vertex_indices
-        prev_idx = -1
-        ordered.each do |b|
-          min_idx = vertex_indices[b.id]
-          next if min_idx.nil?
-          idx_inversions += 1 if prev_idx >= 0 && min_idx < prev_idx - 5
-          prev_idx = min_idx
-        end
-
-        # 採番品質の指標 (3): 連続するバス停間の物理距離 (m) に基づく outlier 検出。
-        # idx_inversions と違い循環路線で偽陽性を出さず、固定 1km しきい値と違い高速バス
-        # でも誤検出しない。「普段は短い」のに「ところどころ異常に飛ぶ」を検出する。
-        # threshold = max(500m, median * 3): 路線の中央値の 3 倍 or 絶対 500m のいずれか高い方。
-        distances_m = ordered.each_cons(2).map { |a, b|
-          HAVERSINE.call(a.bus_stop.latitude, a.bus_stop.longitude,
-                         b.bus_stop.latitude, b.bus_stop.longitude)
-        }
-        anomaly_jumps = 0
-        consec_max_m = 0.0
-        median_m = 0.0
-        if !distances_m.empty?
-          consec_max_m = distances_m.max
-          sorted_d = distances_m.sort
-          median_m = sorted_d[sorted_d.size / 2]
-          threshold_m = [ 500.0, median_m * 3 ].max
-          anomaly_jumps = distances_m.count { |d| d > threshold_m }
-        end
-
-        rows << [
-          bus_route.id,
-          "#{bus_route.operation_company} #{bus_route.line_name}".strip,
-          stitch.total_tracks,
-          stitch.skipped_parallel,
-          stitch.reversed_count,
-          stitch.isolated_count,
-          stitch.max_jump_distance.round(1),
-          stitch.large_jump_count,
-          stitch.connection_jump_max.round(1),
-          stitch.connection_large_jump_count,
-          stitch.connection_count,
-          stitch.flat_coords.size,
-          ordered.size,
-          backward_turns,
-          off_track_count,
-          off_track_max_m.round(1),
-          idx_inversions,
-          anomaly_jumps,
-          consec_max_m.round(1),
-          median_m.round(1)
-        ]
-      end
-    end
-
     # anomaly_jumps 降順 → median ベースで「飛び」が異常に多い路線を上から見られる。
-    # 高速バスでも community bus でも一律に「他の隣接停留所に比して異常な飛び」を抽出する。
     rows.sort_by! { |row| [ -row[17], -row[18] ] }
-
     CSV.open(out_path, "w") do |csv|
       csv << %w[
         bus_route_id name total_tracks skipped_parallel reversed_count isolated_count
@@ -398,7 +399,7 @@ namespace :bus_stop_number do
     puts "Routes with >100m connection jump:  #{routes_with_conn_large_jump}"
     puts "Routes with backward turns (採番):  #{routes_with_backward}"
     puts "Total backward turns (合計):        #{total_backward}"
-    puts "Routes with off-track (>#{off_track_threshold_m.to_i}m) bus stops:  #{routes_with_off_track}"
+    puts "Routes with off-track (>#{DIAGNOSE_OFF_TRACK_THRESHOLD_M.to_i}m) bus stops:  #{routes_with_off_track}"
     puts "Total off-track bus stops (合計):   #{total_off_track}"
     puts "Routes with idx inversions:         #{routes_with_inversions}"
     puts "Total idx inversions (合計):        #{total_inversions}"
@@ -411,6 +412,101 @@ namespace :bus_stop_number do
       puts "  #{row[0].to_s.ljust(8)} #{row[17].to_s.ljust(5)} #{row[18].to_s.ljust(8)} #{row[19].to_s.ljust(7)} #{row[16].to_s.ljust(5)} #{row[12].to_s.ljust(7)} #{row[1]}"
     end
   end
+
+  desc "Generate bus_stop_number into db/data/bus_stop_numbers.csv.gz (does not touch DB). PREFECTURE=東京都 で 1 県だけ再計算し既存 CSV にマージ (CSV は常に 47 都道府県分完全、DB 反映には bus_stop_number:load を続けて呼ぶ)。WITH_DIAGNOSTICS=1 で tmp/bus_stop_number_diagnostics.csv も同時生成 (= diagnose task 別実行を不要にする)"
+  task generate: :environment do
+    require "csv"
+    require "zlib"
+    $stdout.sync = true
+    csv_path = "db/data/bus_stop_numbers.csv.gz"
+    with_diagnostics = !ENV["WITH_DIAGNOSTICS"].to_s.empty?
+
+    # 1. db/data/stitches.csv.gz から stitch 結果を読み込む (stitch:generate 出力)。
+    # 2. BusStopNumberer で各 brbs に bus_stop_number を割り当て、A/B 候補から best を選ぶ。
+    # 3. WITH_DIAGNOSTICS=1 のとき: 採番と同時に品質指標も計算 (per-route ループ内で完結、
+    #    bus_stop_number:diagnose の重複計算を回避)。
+    result = compute_assignments(with_diagnostics: with_diagnostics)
+    rows = with_diagnostics ? result[:rows] : result
+
+    if PrefectureFilter.active?
+      # 既存 CSV を load → 該当県の brbs を更新 (= 他 46 県の rows はそのまま) → 書き戻し。
+      # これで CSV は常に 47 都道府県分完全。DB 反映は bus_stop_number:load を続けて呼ぶ。
+      existing = load_existing_assignments(csv_path)
+      rows.each { |id, num| existing[id] = num }
+      sorted = existing.sort.to_a
+      Zlib::GzipWriter.open(csv_path) do |gz|
+        csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
+        sorted.each { |row| csv << row }
+      end
+      puts "PREFECTURE filter: merged #{rows.size} rows into #{csv_path} (total #{sorted.size}). Run 'bus_stop_number:load' to apply to DB."
+    else
+      Zlib::GzipWriter.open(csv_path) do |gz|
+        csv = CSV.new(gz, headers: %w[bus_route_bus_stop_id bus_stop_number], write_headers: true)
+        rows.each { |row| csv << row }
+      end
+      puts "Wrote #{csv_path} (#{rows.size} rows)"
+    end
+
+    if with_diagnostics
+      diag_path = "tmp/bus_stop_number_diagnostics.csv"
+      diag_rows = result[:diag_rows]
+      # compute_assignments は with_fragmented で回す → INCLUDE_FRAGMENTED 未指定なら fragmented 除外。
+      # default_scope { fragmented: false } があるため where(fragmented: true) は 0 件になる。
+      unless ENV["INCLUDE_FRAGMENTED"]
+        fragmented_ids = BusRoute.fragmented_only.pluck(:id).to_set
+        diag_rows = diag_rows.reject { |row| fragmented_ids.include?(row[0]) }
+      end
+      write_diagnose_results(diag_rows, diag_path)
+    end
+  end
+
+  # 既存 bus_stop_numbers.csv.gz を Hash{brbs_id => bus_stop_number} で読み込む。
+  # PREFECTURE filter で部分更新する際に「他 46 県分」を保持するために使う。
+  def self.load_existing_assignments(csv_path)
+    return {} unless File.exist?(csv_path)
+    map = {}
+    Zlib::GzipReader.open(csv_path) do |f|
+      CSV.new(f, headers: true).each do |row|
+        num = row["bus_stop_number"]
+        map[row["bus_route_bus_stop_id"].to_i] = num.nil? || num.empty? ? nil : num.to_i
+      end
+    end
+    map
+  end
+
+  desc "Profile bus_stop_number:generate via stackprof (writes tmp/bus_stop_number_generate.stackprof)"
+  task profile: :environment do
+    require "stackprof"
+
+    $stdout.sync = true
+    out = "tmp/bus_stop_number_generate.stackprof"
+    StackProf.run(mode: :wall, out: out, interval: 1000) do
+      compute_assignments
+    end
+    puts ""
+    puts "Profile saved to #{out}"
+    puts "View top by self time:   bundle exec stackprof #{out} --text --limit 30"
+    puts "View top by total time:  bundle exec stackprof #{out} --text --total --limit 30"
+  end
+
+  desc "Diagnose TrackStitcher quality per route into tmp/bus_stop_number_diagnostics.csv (set INCLUDE_FRAGMENTED=1 to include fragmented routes). 内部で compute_assignments(with_diagnostics: true) を呼ぶ (= generate と同じ並列化された経路で品質指標を計算)"
+  task diagnose: :environment do
+    $stdout.sync = true
+    out_path = "tmp/bus_stop_number_diagnostics.csv"
+
+    result = compute_assignments(with_diagnostics: true)
+    rows = result[:diag_rows]
+
+    unless ENV["INCLUDE_FRAGMENTED"]
+      fragmented_ids = BusRoute.fragmented_only.pluck(:id).to_set
+      rows = rows.reject { |row| fragmented_ids.include?(row[0]) }
+    end
+
+    scope_label = ENV["INCLUDE_FRAGMENTED"] ? "INCLUDING" : "EXCLUDING"
+    puts "Diagnose target: #{rows.size} routes (#{scope_label} fragmented)"
+    write_diagnose_results(rows, out_path)
+  end
+
 
   desc "Inspect a single route's stitch + bus_stop_number assignment (ROUTE_ID=...)"
   task inspect: :environment do

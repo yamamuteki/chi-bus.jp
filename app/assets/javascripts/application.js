@@ -20,12 +20,26 @@
 function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath) {
   if (!document.body.meta) { document.body.meta = new Object(); }
   handler = Gmaps.build('Google');
-  handler.buildMap({ provider: { scrollwheel: false, MinZoom:15 }, internal: {id: 'map'}}, function(){
+  handler.buildMap({ provider: { gestureHandling: 'cooperative' }, internal: {id: 'map'}}, function(){
     var markers = $.map(markersJson, function(busStop){
       var marker = handler.addMarker(busStop, { visible: false });
       marker.id = busStop.id;
+      marker.path = busStop.path;
       marker.panTo = function() {};
       return marker;
+    });
+    // 単独路線の水色マーカーは HDPI 画像 (52x74) を default と同じ 26x37 で描かせる。
+    // gmaps4rails の marker.picture API は scaledSize を露出していないので、生成後に
+    // setIcon で scaledSize を後がけする。HDPI 画面でも default と同じ解像度を保つ。
+    $.each(markers, function(){
+      var serviceObject = this.getServiceObject();
+      var icon = serviceObject.getIcon();
+      if (icon && typeof icon === 'object' && icon.url && icon.url.indexOf('?style=single') !== -1) {
+        serviceObject.setIcon({
+          url: icon.url,
+          scaledSize: new google.maps.Size(26, 37)
+        });
+      }
     });
     $.each(markers, function(index){
       var marker = this.getServiceObject();
@@ -45,6 +59,11 @@ function drawMap(markersJson, polylinesJson, busStopsCount, centerMakerImagePath
     }
     handler.bounds.extendWith(markers);
     handler.fitMapToBounds();
+    // markers / polylines が揃ったタイミングで common.js 側に通知し、Google Maps の
+    // mouseover / mouseout / click listener をまとめて attach させる。polyline 無しの
+    // ページ (バス停詳細など) でもマーカー側 hook を効かせたいので
+    // if (polylinesJson) の外で trigger する。
+    $(document).trigger("chi-bus:map-ready");
     var centerMarker = handler.addMarker({
       "lat": handler.getMap().getCenter().lat(),
       "lng": handler.getMap().getCenter().lng(),

@@ -37,3 +37,6 @@
 /coverage
 /.claude/
 /.playwright-mcp/
+
+# bus_stop_number:generate のキャッシュ。production には載らず、ローカルでオンデマンド再生成。
+/db/data/stitches.csv.gz

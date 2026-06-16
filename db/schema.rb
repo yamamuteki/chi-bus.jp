@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_08_070809) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_16_110227) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -19,8 +19,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_08_070809) do
     t.integer "bus_route_id"
     t.integer "bus_stop_id"
     t.integer "bus_stop_number"
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
     t.index ["bus_route_id"], name: "index_bus_route_bus_stops_on_bus_route_id"
     t.index ["bus_stop_id"], name: "index_bus_route_bus_stops_on_bus_stop_id"
   end
@@ -28,29 +26,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_08_070809) do
   create_table "bus_route_tracks", id: :serial, force: :cascade do |t|
     t.integer "bus_route_id"
     t.text "coordinates"
-    t.datetime "created_at", precision: nil, null: false
     t.string "gml_id"
-    t.datetime "updated_at", precision: nil, null: false
     t.index ["bus_route_id"], name: "index_bus_route_tracks_on_bus_route_id"
     t.index ["gml_id"], name: "index_bus_route_tracks_on_gml_id"
   end
 
   create_table "bus_routes", id: :serial, force: :cascade do |t|
     t.integer "bus_type"
-    t.datetime "created_at", precision: nil, null: false
     t.boolean "fragmented", default: false, null: false
     t.float "holiday_rate"
     t.string "line_name"
     t.string "note"
     t.string "operation_company"
     t.float "saturday_rate"
-    t.datetime "updated_at", precision: nil, null: false
     t.float "weekday_rate"
   end
 
   create_table "bus_stops", id: :serial, force: :cascade do |t|
     t.string "city"
-    t.datetime "created_at", precision: nil, null: false
     t.string "formatted_address"
     t.string "gml_id"
     t.text "keyword"
@@ -58,7 +51,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_08_070809) do
     t.float "longitude"
     t.string "name"
     t.string "prefecture"
-    t.datetime "updated_at", precision: nil, null: false
     t.index ["keyword"], name: "index_bus_stops_on_keyword", opclass: :gin_trgm_ops, using: :gin
     t.index ["name"], name: "index_bus_stops_on_name", opclass: :gin_trgm_ops, using: :gin
   end

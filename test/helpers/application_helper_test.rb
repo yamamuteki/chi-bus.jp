@@ -2,6 +2,10 @@ require "test_helper"
 
 class ApplicationHelperTest < ActionView::TestCase
   include ApplicationHelper
+  # build_markers から呼ばれる bus_stop_or_place_path は BusStopsHelper にあるので
+  # テスト側でも明示的に include する。本番の view 側は helper :all で全 helper が
+  # 自動で揃うため必要ない。
+  include BusStopsHelper
 
   test "should build_markers return empty" do
     results = build_markers([])
@@ -13,22 +17,21 @@ class ApplicationHelperTest < ActionView::TestCase
       BusStop.new(id: 1, latitude: 3.5, longitude: 4.5, name: "name_1"),
       BusStop.new(id: 2, latitude: 5.5, longitude: 6.5, name: "name_2")
     ]
-    stub(:render, true) do
-      results = build_markers(bus_stops)
-      assert_equal 2, results.length
+    results = build_markers(bus_stops)
+    assert_equal 2, results.length
 
-      assert_equal 1, results[0][:id]
-      assert_equal 3.5, results[0][:lat]
-      assert_equal 4.5, results[0][:lng]
-      assert_equal "name_1", results[0][:marker_title]
-      assert results[0][:infowindow]
+    assert_equal 1, results[0][:id]
+    assert_equal "/bus_stops/1", results[0][:path]
+    assert_equal 3.5, results[0][:lat]
+    assert_equal 4.5, results[0][:lng]
+    # 路線が紐付いていない BusStop なので路線数 0、title は「name（0）」になる。
+    assert_equal "name_1（0）", results[0][:marker_title]
 
-      assert_equal 2, results[1][:id]
-      assert_equal 5.5, results[1][:lat]
-      assert_equal 6.5, results[1][:lng]
-      assert_equal "name_2", results[1][:marker_title]
-      assert results[1][:infowindow]
-    end
+    assert_equal 2, results[1][:id]
+    assert_equal "/bus_stops/2", results[1][:path]
+    assert_equal 5.5, results[1][:lat]
+    assert_equal 6.5, results[1][:lng]
+    assert_equal "name_2（0）", results[1][:marker_title]
   end
 
   test "should build_markers return position markers" do
@@ -43,10 +46,8 @@ class ApplicationHelperTest < ActionView::TestCase
   end
 
   test "should build_markers return bus stops and position markers" do
-    stub(:render, true) do
-      results = build_markers([ BusStop.new(id: 1) ], "1.5,2.5")
-      assert_equal 2, results.length
-    end
+    results = build_markers([ BusStop.new(id: 1) ], "1.5,2.5")
+    assert_equal 2, results.length
   end
 
   test "shuld build_routes return empty" do

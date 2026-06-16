@@ -101,38 +101,43 @@ CI は `.github/workflows/ci.yml`（GitHub Actions）。lint / scan_ruby / scan_
 
 ### データ構築パイプライン
 
-XML + JSON のソースから `db/data/*.csv.gz` を生成し、gzip 圧縮した CSV を PostgreSQL の `COPY FROM STDIN` で投入する 2 段構成。圧縮しているのは GitHub の 100MB ファイル上限を超える `keywords.csv` (生で 270MB) を git 管理するため。load 側は `Zlib::GzipReader` で逐次解凍しながら `put_copy_data` する。
+データは KSJ (国土数値情報 N07/P11) と ISJ (位置参照情報) を source of truth とし、いずれもメンテナンス終了済みで **forever immutable**。アプリ内でも create / update は発生しないので、CSV が再生成されるのはロジック変更時 (numberer / orienter / stitcher / fragmented 判定の見直し等) のみ。
 
-ソース：
+ソース:
 
-- `db/ksj/n07/N07-11_*.xml.gz` — バス路線（**国土交通省「国土数値情報」**、ファイル名末尾 2 桁は JIS 都道府県コード、47 都道府県分）。生 XML が大きいので gzip 圧縮して git 管理 (`open_xml` で透過解凍)。県境を跨ぐ Curve は隣県 N07 にも同一座標で重複登録されているため `data:generate` 側で座標 hash dedup している
-- `db/ksj/p11/P11-10_*-jgd-g.xml.gz` — バス停（47 都道府県分）
-- `db/isj/{prefcode}-18.0b/*.csv` — **位置参照情報** (大字・町丁目レベル、CP932 エンコード)。reverse geocoding (lat/lng → 住所) のソース。47 都道府県分。XML 同様 git 管理 (約 17MB)。最新版を取り込み直すときは <https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi> から DL し直す。zip / html / xml は不要なので CSV だけ残す運用。
+- `db/ksj/n07/N07-11_*.xml.gz` — バス路線 (国土数値情報、ファイル名末尾 2 桁が JIS 都道府県コード)
+- `db/ksj/p11/P11-10_*-jgd-g.xml.gz` — バス停
+- `db/isj/{prefcode}-18.0b/*.csv` — 位置参照情報 (CP932 エンコード)
 
 利用にあたっては国土数値情報・位置参照情報ダウンロードサービスの利用規約に従うこと。
 
-タスク：
+#### 罠と非自明な決定
 
-生成タスク (CSV はそれぞれ git に commit、最新ソースやロジック変更時だけ再生成):
+- **gzip 圧縮の理由**: `keywords.csv` が生 270MB あり GitHub の 100MB ファイル上限を超える。全 CSV を `.csv.gz` で揃え、`Zlib::GzipReader` 経由で `COPY FROM STDIN` に流し込む。
+- **`stitches.csv.gz` だけ git 管理外** (`.gitignore`): TrackStitcher の per-route キャッシュで production 不要、31 MB のサイズだけが負担。採番反復前に 1 度だけ `stitch:generate` をローカルで走らせる必要がある (~70s)。
+- **N07 の Curve は県境で両県 XML に重複登録されている**: 過去 dedup を試したが「別 route の偶然同じ座標 (高速バス共有区間や折返便の住宅街共有区間)」まで巻き込んで curves が大量喪失していたため no-dedup に切り替え済み。`bus_route_tracks` 行数は +36% 増えるが採番が完全になる。
+- **派生列は独立**: `bus_stop_number` / `city` / `formatted_address` / `keyword` は別 CSV / 別 `*:load` で bulk UPDATE する。1 つを再生成しても他に影響しない構造。
 
-- `data:generate` — N07 / P11 XML をパースし、`db/data/bus_stops.csv.gz` / `bus_routes.csv.gz` / `bus_route_tracks.csv.gz` / `bus_route_bus_stops.csv.gz` を出力。
-- `stitch:generate` — DB の `bus_route_tracks` を TrackStitcher で連結し、A/B 起点候補 (StartTerminalSelector による hint と最西端 fallback) の flat_coords を per-route で `db/data/stitches.csv.gz` に出力。`bus_stop_number:generate` の前提となる中間生成物 (これが無いと raise する)。`:load` タスクは無く、production の DB スキーマには反映されない (Heroku の db:seed でもスキップされる)。
-- `bus_stop_number:generate` — `stitches.csv.gz` を読み込んで numberer + orienter で `db/data/bus_stop_numbers.csv.gz` を生成。
-- `geocode:generate` — `db/isj/` の ISJ CSV を読み、各 bus_stop の最近接 entry から `db/data/geocoding.csv.gz` (city, formatted_address) を生成。ISJ raw データ (`db/isj/`) はダウンロード必要、生成 CSV だけ commit する。
-- `keyword:generate` — kakasi で `db/data/keywords.csv.gz` を生成 (`libkakasi.so.2` 要、Dockerfile.dev の kakasi パッケージに同梱)。
+#### タスク
 
-ロードタスク:
+生成 (`*:generate`) は CSV を出力するだけで DB を触らない。ロード (`*:load`) が CSV → DB に bulk UPDATE する。
 
-- `data:load` — `bus_routes` / `bus_route_tracks` / `bus_stops` / `bus_route_bus_stops` の 4 テーブルを `TRUNCATE` してから `db/data/*.csv.gz` を `COPY FROM STDIN` で流し込む (派生列 `bus_stop_number` / `city` / `formatted_address` / `keyword` は NULL のまま入る)。
-- `bus_stop_number:load` / `geocode:load` / `keyword:load` — 対応する CSV を bulk UPDATE で派生列に流し込む。
-- `db:seed` — `db/seeds.rb` の二重取り込みガード経由で `data:load` → `bus_stop_number:load` → `geocode:load` → `keyword:load` を順に呼ぶ。Heroku でも実行可能で約 1 分。新規セットアップはこれだけでよい。
+- `data:generate` — N07 / P11 XML → `bus_routes` / `bus_route_tracks` / `bus_stops` / `bus_route_bus_stops` の 4 CSV
+- `stitch:generate` — TrackStitcher のキャッシュ (ローカル専用)
+- `bus_stop_number:generate` — numberer + orienter で採番 (`stitches.csv.gz` が前提、無いと raise)
+- `geocode:generate` — ISJ から (city, formatted_address)
+- `keyword:generate` — kakasi で検索キーワード (`libkakasi.so.2` 必須)
+- `data:load` — `*_csv.gz` 4 つを `TRUNCATE` + `COPY FROM STDIN` で投入。派生列は NULL のまま入る
+- `bus_stop_number:load` / `geocode:load` / `keyword:load` — 対応する CSV を bulk UPDATE
+- `db:seed` — 二重取り込みガード経由で `data:load` → `bus_stop_number:load` → `geocode:load` → `keyword:load` を順に呼ぶ。Heroku でも約 1 分。新規セットアップはこれだけで完成
 
-診断/プロファイルタスク (採番品質改善で常用):
+#### 診断 / プロファイル
 
-- `data:profile` / `stitch:profile` / `bus_stop_number:profile` — stackprof で対応する `:generate` を計測し `tmp/*.stackprof` に出力。
-- `bus_stop_number:diagnose` — 全路線の stitch + 採番品質指標 (idx_inversions / anomaly_jumps / off_track / backward_turns 他) を `tmp/bus_stop_number_diagnostics.csv` に書き出す。`INCLUDE_FRAGMENTED=1` で fragmented 路線も含める。`tmp/chi-bus-baseline/` のベースライン CSV と diff することで採番ロジック変更の影響を測る。
-- `bus_stop_number:inspect ROUTE_ID=N` — 1 路線分の tracks / StartTerminalSelector の選択 / stitch_steps / 各バス停の closest_idx を標準出力に詳細ダンプ。diagnose で異常値が出た路線の深掘りに使う。
-- `PREFECTURE=東京都` を `stitch:generate` / `bus_stop_number:generate` / `bus_stop_number:diagnose` に渡すと該当県の routes だけ計算する (CSV 上書きは skip、ベンチ専用モード)。アルゴリズム反復のフィードバックループを高速化するため、`100 回反復するタスク` にだけ filter を入れている。`data:generate` には適用していない (新規 ID 採番タスクなので部分実行で downstream の参照が壊れるため)、`geocode:generate` / `keyword:generate` も適用していない (反復頻度が低く ROI が無いため)。
+- `bus_stop_number:diagnose` — 採番品質指標 (idx_inversions / anomaly_jumps / off_track / backward_turns 他) を `tmp/bus_stop_number_diagnostics.csv` に出力。`tmp/chi-bus-baseline/` のベースラインと diff してロジック変更の影響を測る運用。`INCLUDE_FRAGMENTED=1` で fragmented 路線も含む
+- `bus_stop_number:inspect ROUTE_ID=N` — 1 路線分の tracks / 起点選択 / stitch_steps / 各バス停の closest_idx を標準出力にダンプ。diagnose で異常値が出た路線の深掘り用
+- `*:profile` — stackprof で `:generate` を計測し `tmp/*.stackprof` 出力
+
+`PREFECTURE=東京都` を `stitch:generate` / `bus_stop_number:generate` / `bus_stop_number:diagnose` に渡すと該当県のみ計算 (反復フィードバック高速化)。`data:generate` には適用しない (ID 採番が壊れる)、`geocode:generate` / `keyword:generate` は反復頻度が低く ROI 無し。
 
 ### テスト
 

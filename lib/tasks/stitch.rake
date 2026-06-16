@@ -7,27 +7,87 @@
 # stitch:load は無い: production はこの中間ファイルを読まない (DB のスキーマは無変更)。
 # Heroku デプロイでも generate は呼ばれず、commit 済みの CSV を bus_stop_number:load の
 # 直前段階として bus_stop_number:generate (= ローカル実行) が消費するだけ。
+require "etc"
+
 namespace :stitch do
   # generate / profile から共通に呼ぶ計算本体。Hash {(route_id, start_repr) => Entry} を返す。
   # pick_best_assignment と同じ start 候補 (selector A + fallback nil) を全 route で計算する。
+  #
+  # per-route 処理は独立なので fork-based 並列で worker 数倍速くなる。
+  # STITCH_WORKERS env で worker 数を上書き可能 (default = Etc.nprocessors)。
   def self.compute_stitches
+    scope = PrefectureFilter.apply(BusRoute.with_fragmented)
+    bus_route_ids = scope.pluck(:id)
+    # default = nprocessors - 1 (= parent process + db / docker daemon 用に 1 CPU 残す)。
+    # VM 全 CPU を worker で奪い合うと context switching が増えてかえって遅くなる。
+    worker_count = ENV.fetch("STITCH_WORKERS") { [ Etc.nprocessors - 1, 1 ].max }.to_i
+
+    results = if worker_count <= 1 || bus_route_ids.size <= worker_count
+      # 1 worker のときは fork overhead を払わず in-process で回す。
+      [ compute_stitches_for(bus_route_ids) ]
+    else
+      # 自前 Process.fork で並列化する。子→親のデータ転送は file 経由で行う
+      # (parallel gem は子の cleanup hook で hang するケースがあったため独自実装に切り替え)。
+      require "fileutils"
+      require "securerandom"
+      ActiveRecord::Base.connection_handler.connection_pools.each(&:disconnect!)
+      chunk_size = (bus_route_ids.size.to_f / worker_count).ceil
+      chunks = bus_route_ids.each_slice(chunk_size).to_a
+      tmp_dir = "tmp/_parallel_stitches_#{SecureRandom.hex(4)}"
+      FileUtils.mkdir_p(tmp_dir)
+
+      pids = chunks.each_with_index.map do |ids_chunk, idx|
+        Process.fork do
+          # 子プロセスは親から継承した PG socket を共有してしまい、デッドロックの原因になる。
+          ActiveRecord::Base.connection_handler.connection_pools.each(&:disconnect!)
+          partial = compute_stitches_for(ids_chunk)
+          File.binwrite(File.join(tmp_dir, "#{idx}.dump"), Marshal.dump(partial))
+          # exit! で at_exit hook / AR の after_fork hook 等のクリーンアップを skip し
+          # 確実に終了させる (= 通常の exit だと親と共有する socket の close で hang する)。
+          exit!(0)
+        end
+      end
+      pids.each { |pid| Process.waitpid(pid) }
+
+      chunks.each_with_index.map do |_, idx|
+        path = File.join(tmp_dir, "#{idx}.dump")
+        partial = Marshal.load(File.binread(path))
+        File.delete(path)
+        partial
+      end.tap { FileUtils.rm_rf(tmp_dir) }
+    end
+
     map = {}
     selector_used = 0
     fallback_only = 0
-    multi_try = 0
-    fallback_multi = ->(tracks, start) {
-      multi_try += 1
-      stitch_one(tracks, start)
-    }
+    results.each do |partial|
+      map.merge!(partial[:map])
+      selector_used += partial[:selector_used]
+      fallback_only += partial[:fallback_only]
+    end
+    puts "  selector picked start_a: #{selector_used}, fallback only: #{fallback_only} (#{worker_count} workers)"
+    map
+  end
 
-    scope = PrefectureFilter.apply(BusRoute.with_fragmented)
+  # 指定 route IDs の chunk 分を計算。並列 worker 内 / シリアル両方から呼ぶ。
+  def self.compute_stitches_for(bus_route_ids)
+    map = {}
+    selector_used = 0
+    fallback_only = 0
 
-    ActiveRecord::Base.logger.silence(Logger::WARN) do
-      scope.find_each do |bus_route|
+    # silence(Logger::WARN) では caller_locations / BacktraceCleaner の build が残るので、
+    # logger を nil に置き換えて SQL ログ生成を完全 skip する (per-route の AR query が重い
+    # ループで効く)。
+    saved_logger = ActiveRecord::Base.logger
+    ActiveRecord::Base.logger = nil
+    begin
+      BusRoute.with_fragmented
+              .where(id: bus_route_ids)
+              .includes(:bus_route_tracks, bus_route_bus_stops: :bus_stop)
+              .find_each do |bus_route|
         tracks = bus_route.bus_route_tracks.to_a
-        # selector の駅 hint や line_name hint で起点候補 A を決める。
-        # multi_try_min_bridge にハマったときも内部で stitch を使うので、その分も map に乗せる。
-        brbs = bus_route.bus_route_bus_stops.reorder(:id).includes(:bus_stop).to_a
+        # in-memory sort (preload 済みの association を reorder で再クエリしない)。
+        brbs = bus_route.bus_route_bus_stops.sort_by(&:id)
         start_a = StartTerminalSelector.call(
           tracks,
           line_name: bus_route.line_name,
@@ -51,10 +111,11 @@ namespace :stitch do
           fallback_only += 1
         end
       end
+    ensure
+      ActiveRecord::Base.logger = saved_logger
     end
 
-    puts "  selector picked start_a: #{selector_used}, fallback only: #{fallback_only}, multi_try fires: #{multi_try}"
-    map
+    { map: map, selector_used: selector_used, fallback_only: fallback_only }
   end
 
   # stitcher 1 回呼び出しの薄いラッパ。プロファイル時にここを起点に時間を測る用。
@@ -81,7 +142,7 @@ namespace :stitch do
     end
   end
 
-  desc "Profile stitch:generate via stackprof (writes tmp/stitch_generate.stackprof)"
+  desc "Profile stitch:generate via stackprof (writes tmp/stitch_generate.stackprof). STITCH_WORKERS=1 で in-process プロファイル可能"
   task profile: :environment do
     require "stackprof"
 
